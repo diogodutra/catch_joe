@@ -19,7 +19,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 # # Load dataset
 
-# In[ ]:
+# In[2]:
 
 
 file = 'data/dataset.json'
@@ -38,7 +38,7 @@ df.head()
 
 # The first feature to be explored is `gender`. Let's explore the hypothesis that Joe never changed their gender.
 
-# In[ ]:
+# In[3]:
 
 
 sns.catplot(x='joe', hue='gender', kind='count', data=df)
@@ -48,7 +48,7 @@ sns.catplot(x='joe', hue='gender', kind='count', data=df)
 
 # ## Location
 
-# In[ ]:
+# In[4]:
 
 
 locations = list(set(df['location']))
@@ -57,13 +57,13 @@ print(len(locations), 'locations in the dataset:', *locations)
 
 # Let's now explore `location`. Unless Joe works in a cruising ship, probably he has limited variation of location around the globe so let's explore this hypothesis.
 
-# In[ ]:
+# In[5]:
 
 
 sns.catplot(x='joe', hue='location', kind='count', data=df)
 
 
-# In[ ]:
+# In[6]:
 
 
 Counter(df[df['joe']]['location'])
@@ -75,13 +75,13 @@ Counter(df[df['joe']]['location'])
 
 # Let's now explore `locale`. It is rare to find an active polyglot so let's explore this hypothesis.
 
-# In[ ]:
+# In[7]:
 
 
 sns.catplot(x='joe', hue='locale', kind='count', data=df)
 
 
-# In[ ]:
+# In[8]:
 
 
 Counter(df[df['joe']]['locale'])
@@ -93,7 +93,7 @@ Counter(df[df['joe']]['locale'])
 
 # If Joe is not a geek than he is probably using only one or two different `os`.
 
-# In[ ]:
+# In[9]:
 
 
 sns.catplot(x='joe', hue='os', kind='count', data=df)
@@ -105,7 +105,7 @@ sns.catplot(x='joe', hue='os', kind='count', data=df)
 
 # For the same reason explained before for the OS, Joe is probably using only a couple of `browsers`.
 
-# In[ ]:
+# In[10]:
 
 
 sns.catplot(x='joe', hue='browser', kind='count', data=df)
@@ -113,11 +113,11 @@ sns.catplot(x='joe', hue='browser', kind='count', data=df)
 
 # Again, Joe uses only Firefox and Chrome, leaving out Internet Explorer and Safari.
 
-# # Time of the day
+# ## Time of the day
 
-# Let's now verify the hypothesis that Joe accesses internet only in some specific ties of the day.
+# Let's now verify the hypothesis that Joe accesses internet only in some specific hours of the day.
 
-# In[ ]:
+# In[11]:
 
 
 df['hour'] = [int(time.split(':')[0]) for time in df['time']]
@@ -125,7 +125,7 @@ df['hour'] = [int(time.split(':')[0]) for time in df['time']]
 sns.catplot(x='joe', hue='hour', kind='count', data=df)
 
 
-# In[ ]:
+# In[12]:
 
 
 print('Hours of the day with Joe\'s accesses:', *set(df[df['joe']]['hour']))
@@ -133,11 +133,59 @@ print('Hours of the day with Joe\'s accesses:', *set(df[df['joe']]['hour']))
 
 # It seems that Joe never accesses internet at some specific hours of the day. Therefore, this is yet another relevant information to be used by our classifier.
 
+# ## Day of the week
+
+# Following the rationale from the previous subsection, let's verify the hypothesis that Joe accesses internet only in some specific days of the week.
+
+# In[37]:
+
+
+df['weekday'] = [date.day_name() for date in df['date']]
+
+sns.catplot(x='joe', hue='weekday', kind='count', data=df)
+
+
+# In[38]:
+
+
+Counter(df[df['joe']]['weekday'])
+
+
+# There is no particular day of the week that shows an unusual history of access from Joe, so let's drop this feature.
+
+# ## Day of the month
+
+# Let's verify if Joe has different frequency of accesses along the days of the month.
+
+# In[55]:
+
+
+df['monthday'] = [date.day for date in df['date']]
+
+sns.catplot(x='joe', hue='monthday', kind='count', data=df)
+
+
+# There is no unusual pattern to be extracted out of the day of the month.
+
+# ## Month of the year
+
+# Now let's check if there is any useful pattern along the months of the year.
+
+# In[53]:
+
+
+df['month'] = [date.month for date in df['date']]
+
+sns.catplot(x='joe', hue='month', kind='count', data=df)
+
+
+# Again, nothing useful from the month of the year.
+
 # # Predictive Model
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe. However, how many logs by chance match exactly at the same time all these features? 
 
-# In[ ]:
+# In[13]:
 
 
 df_like_joe = df.copy()
@@ -165,7 +213,7 @@ print('Like-Joe dataset contains', df_like_joe.shape[0], 'logs',
 # 
 # But how many of the left logs are our Joe indeed?
 
-# In[ ]:
+# In[14]:
 
 
 count = Counter(df_like_joe['joe'])
@@ -177,7 +225,7 @@ is_joe = list(is_joe / is_joe.sum())
 print('False and True logs ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
-# In[ ]:
+# In[15]:
 
 
 user_id_like_joe = set(df_like_joe['user_id'])
@@ -192,7 +240,7 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 # 
 # Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
 
-# In[ ]:
+# In[16]:
 
 
 def categorize(df, features):
@@ -212,7 +260,7 @@ df_ml, le = categorize(df_ml, features + ['joe'])
 df_ml.head()
 
 
-# In[ ]:
+# In[17]:
 
 
 def split_data(df, label, **kwargs):
@@ -225,7 +273,7 @@ X_train, X_test, y_train, y_test = split_data(
     df_ml, 'joe', test_size=.5, random_state=42)
 
 
-# In[ ]:
+# In[18]:
 
 
 def create_model(X_train, y_train, classifier=DecisionTreeClassifier):
@@ -235,7 +283,7 @@ def create_model(X_train, y_train, classifier=DecisionTreeClassifier):
 model = create_model(X_train, y_train)
 
 
-# In[ ]:
+# In[19]:
 
 
 def print_scores(y_pred, y_test):
@@ -257,7 +305,7 @@ print_scores(y_pred, y_test)
 
 # Now, let's do some trick to include the `sites` that contains multiple-entries.
 
-# In[ ]:
+# In[20]:
 
 
 var3 = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
@@ -272,7 +320,7 @@ var3 = var3.join(df).drop(columns={'keys', 'values', 'sites'})
 var3.head()
 
 
-# In[ ]:
+# In[21]:
 
 
 df_ml = var3[features + ['site', 'joe',]].copy()
@@ -283,7 +331,7 @@ X_train, X_test, y_train, y_test = split_data(
     df_ml, 'joe', test_size=.5, random_state=42)
 
 
-# In[ ]:
+# In[22]:
 
 
 # options: DecisionTreeClassifier AdaBoostClassifier BaggingClassifier RandomForestClassifier KNeighborsClassifier GradientBoostingClassifier
@@ -295,13 +343,9 @@ print_scores(y_pred, y_test)
 
 # The result is slightly worst than the previous classifier was trained without `sites` features. It seems that this information is not useful as it is.
 
-# # Day
-
-# Let's use date and
-
 # # Save
 
-# In[ ]:
+# In[24]:
 
 
 # convert Notebook to Python for better version control
