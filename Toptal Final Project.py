@@ -15,6 +15,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier, RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn import tree
+from dtreeviz.trees import dtreeviz
 
 
 # # Load dataset
@@ -137,7 +139,7 @@ print('Hours of the day with Joe\'s accesses:', *set(df[df['joe']]['hour']))
 
 # Following the rationale from the previous subsection, let's verify the hypothesis that Joe accesses internet only in some specific days of the week.
 
-# In[37]:
+# In[13]:
 
 
 df['weekday'] = [date.day_name() for date in df['date']]
@@ -145,7 +147,7 @@ df['weekday'] = [date.day_name() for date in df['date']]
 sns.catplot(x='joe', hue='weekday', kind='count', data=df)
 
 
-# In[38]:
+# In[14]:
 
 
 Counter(df[df['joe']]['weekday'])
@@ -157,7 +159,7 @@ Counter(df[df['joe']]['weekday'])
 
 # Let's verify if Joe has different frequency of accesses along the days of the month.
 
-# In[55]:
+# In[15]:
 
 
 df['monthday'] = [date.day for date in df['date']]
@@ -171,7 +173,7 @@ sns.catplot(x='joe', hue='monthday', kind='count', data=df)
 
 # Now let's check if there is any useful pattern along the months of the year.
 
-# In[53]:
+# In[16]:
 
 
 df['month'] = [date.month for date in df['date']]
@@ -181,17 +183,39 @@ sns.catplot(x='joe', hue='month', kind='count', data=df)
 
 # Again, nothing useful from the month of the year.
 
+# In[17]:
+
+
+df['duration'] = [sum(map(lambda x: x.get('length'), sites)) for sites in df['sites']]
+
+
+# Plotting the duration would be a bit harder to analyse. Intead, let's compare the duration statistics of the population against Joe's.
+
+# In[18]:
+
+
+df['duration'].describe()
+
+
+# In[19]:
+
+
+df[df['joe']]['duration'].describe()
+
+
+# Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it might have some useful correlation with other features.
+
 # # Predictive Model
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe. However, how many logs by chance match exactly at the same time all these features? 
 
-# In[13]:
+# In[20]:
 
 
 df_like_joe = df.copy()
 
 # extract set of single entries from Joe's logs
-features = ['gender', 'location', 'os', 'browser', 'locale', 'hour']
+features = ['gender', 'location', 'os', 'browser', 'locale', 'hour', 'duration']
 filter_data = {feat: set(df[df['joe']][feat]) for feat in features}
 
 for feature, valid_entries in filter_data.items():
@@ -213,7 +237,7 @@ print('Like-Joe dataset contains', df_like_joe.shape[0], 'logs',
 # 
 # But how many of the left logs are our Joe indeed?
 
-# In[14]:
+# In[21]:
 
 
 count = Counter(df_like_joe['joe'])
@@ -225,7 +249,7 @@ is_joe = list(is_joe / is_joe.sum())
 print('False and True logs ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
-# In[15]:
+# In[22]:
 
 
 user_id_like_joe = set(df_like_joe['user_id'])
@@ -240,7 +264,7 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 # 
 # Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
 
-# In[16]:
+# In[23]:
 
 
 def categorize(df, features):
@@ -260,7 +284,7 @@ df_ml, le = categorize(df_ml, features + ['joe'])
 df_ml.head()
 
 
-# In[17]:
+# In[24]:
 
 
 def split_data(df, label, **kwargs):
@@ -273,17 +297,17 @@ X_train, X_test, y_train, y_test = split_data(
     df_ml, 'joe', test_size=.5, random_state=42)
 
 
-# In[18]:
+# In[25]:
 
 
-def create_model(X_train, y_train, classifier=DecisionTreeClassifier):
-    return classifier().fit(X_train, y_train)
+def create_model(X_train, y_train, classifier=DecisionTreeClassifier(max_depth=3)):
+    return classifier.fit(X_train, y_train)
 
 
 model = create_model(X_train, y_train)
 
 
-# In[19]:
+# In[26]:
 
 
 def print_scores(y_pred, y_test):
@@ -296,34 +320,65 @@ y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The Decision Tree presented an average performance. However, it is far from flawless since there are too many false detections that lead some accesses being misclassified as Joe's.
+# The Decision Tree presents an average performance. However, it is far from flawless since there are too many false detections which causes some accesses to be misclassified as Joe's.
+
+# Before we move on, a question... How exactly does this Decision Tree work in order to classify?
 # 
-# Other similar types of classifiers (ie: AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
-# and KNeighborsClassifier) resulted in the performance, which indicates that we need to further explore the rest of the non-categorical features.
+# In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
+
+# In[27]:
+
+
+dtreeviz(model, X_train, y_train,
+                target_name="target",
+                feature_names=features+['site'],
+                class_names=['not Joe', 'Joe'])
+
+
+# In[28]:
+
+
+le['locale'].inverse_transform([18])
+
+
+# The graph above shows that the Decision Tree queries the features in the following order:
+# 1. If the language (`locale`) is less than 17.5 then is not Joe with 100% of certainty; else ...
+# 1. If the language (`locale`) is more than 18.5 then is is not Joe with 100% of certainty; else ...
+# 1. If the duration of access is less than 3.5 than it is Joe with 100% of certainty; else ...
+# 1. We run out of questions so it guesses it is Joe with 18% of centainty.
+# 
+# Mind that `locale = 18` is the Russian language as coded by the `LabelEncoder`. Therefore, the first 2 questions above are mainly telling us that if the language of access is not Russian than it is not 
+# Joe for sure.
+# 
+# Another observtion is that the `duration` alone feature was not useful, as explained in the previous section. However, it became useful for the remaining cases that are exclusivelly Russian speakers.
+
+# Other similar types of classifiers (ie: DecisionTree with unlimited maximum depth, AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
+# and KNeighborsClassifier) resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
 
 # # Websites
 
 # Now, let's do some trick to include the `sites` that contains multiple-entries.
 
-# In[20]:
+# In[29]:
 
 
-var3 = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
-var3.columns = ['keys', 'values']
+df_ml = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
+df_ml.columns = ['keys', 'values']
 
 sites_keys = list(df['sites'].values[0][0].keys())
 for new_feat in sites_keys:
-    var3[new_feat] = [v.get(new_feat) for v in var3['values']]
+    df_ml[new_feat] = [v.get(new_feat) for v in df_ml['values']]
     
-var3 = var3.join(df).drop(columns={'keys', 'values', 'sites'})
-    
-var3.head()
+df_ml = df_ml.join(df).drop(columns={'keys', 'values', 'sites'})
+
+df_ml = df_ml[features + ['site', 'joe',]]
+
+df_ml.head()
 
 
-# In[21]:
+# In[30]:
 
 
-df_ml = var3[features + ['site', 'joe',]].copy()
 df_ml, le = categorize(df_ml, features + ['site', 'joe'])
 
 
@@ -331,21 +386,33 @@ X_train, X_test, y_train, y_test = split_data(
     df_ml, 'joe', test_size=.5, random_state=42)
 
 
-# In[22]:
+# In[31]:
 
 
 # options: DecisionTreeClassifier AdaBoostClassifier BaggingClassifier RandomForestClassifier KNeighborsClassifier GradientBoostingClassifier
-model = create_model(X_train, y_train, RandomForestClassifier)
+model = create_model(X_train, y_train, DecisionTreeClassifier())
 
 y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The result is slightly worst than the previous classifier was trained without `sites` features. It seems that this information is not useful as it is.
+# It seems that `sites` is an useful feature indeed.
+# 
+# Now, the classifier performance is much better than the previous one to the point that it can be deployed.
+
+# In[32]:
+
+
+model.get_depth()
+
+
+# This time we are not plotting the nodes of the Decision Tree simply because it needs many more depths (36) than the previous one (3), which makes it harder to visualize. But the logic is the same: it is just a matter successively questioning the values of the features (nodes) and using the answer (branch) to follow to the next question (next node) until landing into a position without further questions (end node), which contains instead a classification (in our case, Joe or not-Joe).
 
 # # Save
 
-# In[24]:
+# The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
+
+# In[33]:
 
 
 # convert Notebook to Python for better version control
