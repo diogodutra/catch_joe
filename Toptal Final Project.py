@@ -7,7 +7,7 @@
 import pandas as pd
 import numpy as np
 import seaborn as sns
-from collections import Counter
+from collections import Counter, defaultdict
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -52,7 +52,7 @@ file = 'data/dataset.json'
 
 df = pd.read_json(file)
 
-# create target label as a separate column for supervised learning
+# create target label as a separate column
 user_id_joe = 0
 df['joe'] = df['user_id'] == user_id_joe
 
@@ -138,7 +138,7 @@ sns.catplot(x='joe', hue='os', kind='count', data=df)
 sns.catplot(x='joe', hue='browser', kind='count', data=df)
 
 
-# Again, Joe uses only Firefox and Chrome, leaving out Internet Explorer and Safari.
+# Again, Joe uses only Firefox and Chrome, ruling out Internet Explorer and Safari.
 
 # ## 2.6 Time of the day
 
@@ -230,7 +230,7 @@ df['duration'].describe()
 df[df['joe']]['duration'].describe()
 
 
-# Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it might have some useful correlation with other features.
+# Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it is slightly off the population statistics so it might have some useful correlation with other features.
 
 # # 3 Predictive Model
 
@@ -275,7 +275,7 @@ print(count)
 is_joe = np.asarray(list(count.values()))
 is_joe = list(is_joe / is_joe.sum())
 
-print('False and True logs ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
+print('False and True accesses ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
 # In[22]:
@@ -296,7 +296,7 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 # In[23]:
 
 
-def categorize(df, features):
+def encode_features(df, features):
 
     df[features] = df[features].astype('category')
 
@@ -307,9 +307,16 @@ def categorize(df, features):
         
     return df, le
         
-        
-df_ml = df[features + ['joe',]].copy()
-df_ml, le = categorize(df_ml, features + ['joe'])
+
+def encode_joe(is_joe_bool_list, encode_dict={True: user_id_joe, False: 1}):
+    return [encode_dict[is_joe] for is_joe in is_joe_bool_list]
+    
+    
+df_ml = df[features + ['joe']].copy()
+features_categorical = ['gender', 'location', 'os', 'browser', 'locale', 'hour']
+df_ml, le = encode_features(df_ml, features_categorical)
+df_ml['joe'] = encode_joe(df_ml['joe'])
+
 df_ml.head()
 
 
@@ -317,7 +324,8 @@ df_ml.head()
 
 
 def split_data(df, label, **kwargs):
-    features = set(df_ml.columns) - {label}
+    features = list(df.columns).copy()
+    features.remove(label)
     X, y = df[features].values, df[label].values
     return train_test_split(X, y, **kwargs)
     
@@ -341,15 +349,15 @@ model = create_model(X_train, y_train)
 
 def print_scores(y_pred, y_test):
     print('{0:.2%}'.format(accuracy_score(y_pred, y_test)), 'is the accuracy of the classifier.')
-    print('{0:.0%}'.format(recall_score(y_pred, y_test)), 'of the Joe\'s accesses are detected.')
-    print('{0:.0%}'.format(precision_score(y_pred, y_test)), 'of the Joe\'s detections are true.')
+    print('{0:.2%}'.format(recall_score(y_pred, y_test, pos_label=0)), 'of the detections are truly from Joe.')
+    print('{0:.2%}'.format(precision_score(y_pred, y_test, pos_label=0)), 'of the Joe\'s accesses are not detected.')
     
     
 y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The Decision Tree presents an average performance. However, it is far from excellent since there are too many false detections which causes some accesses to be misclassified as Joe's.
+# The Decision Tree presents an average performance. However, it is far from excellent since there are too many missed accesses from Joe.
 
 # Before we move on to improve the performance, here is a question. How exactly does this Decision Tree above work in order to classify?
 # 
@@ -360,8 +368,8 @@ print_scores(y_pred, y_test)
 
 dtreeviz(model, X_train, y_train,
                 target_name="target",
-                feature_names=features+['site'],
-                class_names=['not Joe', 'Joe'])
+                feature_names=features,
+                class_names=['Joe', 'not Joe'])
 
 
 # In[28]:
@@ -374,7 +382,7 @@ le['locale'].inverse_transform([18])
 # 1. If the language (`locale`) is less than 17.5 then is not Joe with 100% of certainty; else ...
 # 1. If the language (`locale`) is more than 18.5 then is is not Joe with 100% of certainty; else ...
 # 1. If the duration of access is less than 3.5 than it is Joe with 100% of certainty; else ...
-# 1. We run out of questions so it guesses it is Joe with 18% of centainty.
+# 1. We run out of questions so it guesses it is not Joe with 18% of error.
 # 
 # Mind that `locale = 18` is the Russian language as coded by the `LabelEncoder`. Therefore, the first 2 questions above are mainly telling us that if the language of access is not Russian than it is not 
 # Joe for sure.
@@ -391,15 +399,20 @@ le['locale'].inverse_transform([18])
 # In[29]:
 
 
-df_ml = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
-df_ml.columns = ['keys', 'values']
+def extract_sites(df):
+    df_ml = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
+    df_ml.columns = ['keys', 'values']
 
-sites_keys = list(df['sites'].values[0][0].keys())
-for new_feat in sites_keys:
-    df_ml[new_feat] = [v.get(new_feat) for v in df_ml['values']]
+    sites_keys = list(df['sites'].values[0][0].keys())
+    for new_feat in sites_keys:
+        df_ml[new_feat] = [v.get(new_feat) for v in df_ml['values']]
+
+    df_ml = df_ml.join(df).drop(columns={'keys', 'values', 'sites'})
     
-df_ml = df_ml.join(df).drop(columns={'keys', 'values', 'sites'})
+    return df_ml
 
+    
+df_ml = extract_sites(df)
 features += ['site']
 df_ml = df_ml[features + ['joe',]]
 
@@ -409,16 +422,22 @@ df_ml.head()
 # In[30]:
 
 
-df_ml, le = categorize(df_ml, features + ['joe'])
+df_ml, le = encode_features(df_ml, features)
 
 
 X_train, X_test, y_train, y_test = split_data(
-    df_ml, 'joe', test_size=.2, random_state=42)
+    df_ml, 'joe', test_size=.3, random_state=42)
 
 print(len(y_test), 'samples in the test dataset.')
 
 
 # In[31]:
+
+
+df_ml.head()
+
+
+# In[32]:
 
 
 # options: DecisionTreeClassifier AdaBoostClassifier BaggingClassifier RandomForestClassifier KNeighborsClassifier GradientBoostingClassifier
@@ -428,23 +447,81 @@ y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# It seems that `sites` is an useful feature indeed.
+# It seems that `sites` is an useful information indeed. Let's add it to the features.
 # 
 # The new classifier performance is much better than the previous one to the point that it can be deployed.
 
-# In[32]:
+# In[33]:
+
+
+features_categorical += ['site']
+
+
+# In[34]:
 
 
 model.get_depth()
 
 
-# This time we are not plotting the nodes of the Decision Tree simply because it needs many more depths (36) than the previous one (3), which makes it harder to visualize. But the logic is the same: it is just a matter successively questioning the values of the features (nodes) and using the answer (branch) to follow to the next question (next node) until landing into a position without further questions (end node), which contains instead a classification (in our case, Joe or not-Joe).
+# This time we are not plotting the nodes of the Decision Tree simply because it needs many more depths (as shown above) than the previous one (3), which makes it harder to visualize. But the logic is the same: it is just a matter successively questioning the values of the features (nodes) and using the answer (branch) to follow to the next question (next node) until landing into a position without further questions (end node), which contains instead a classification (in our case, Joe or not-Joe).
 
 # # 4 Save
 
+# ## 4.1 Saving the model
+
+# In[35]:
+
+
+def encode(df, features, le):
+
+    for feat in features:
+        df[feat] = le[feat].transform(df[feat])
+        
+    return df
+
+
+# In[36]:
+
+
+# load the input file
+df_verify = pd.read_json('./data/verify.json')
+
+# add some features
+df_verify['hour'] = [int(time.split(':')[0]) for time in df_verify['time']]
+df_verify['duration'] = [sum(map(lambda x: x.get('length'), sites)) for sites in df_verify['sites']]
+df_verify = extract_sites(df_verify)
+
+# remove some unused features
+df_verify = df_verify[features]
+
+# convert features into category type
+df_verify = encode(df_verify, features_categorical, le)
+
+
+df_verify.head()
+
+
+# In[41]:
+
+
+y_infered = model.predict(df_verify.values)
+count = Counter(y_infered)
+print(count)
+percentage = count[True] / (count[True] + count[False])
+print(percentage)
+
+
+# In[42]:
+
+
+print(df[df['joe']].shape[0] / df.shape[0])
+
+
+# ## 4.2 Exporting this Notebook
+
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[33]:
+# In[39]:
 
 
 # convert Notebook to Python for better version control
