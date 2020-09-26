@@ -298,7 +298,7 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 
 def categorize(df, features):
 
-    df_ml[features] = df_ml[features].astype('category')
+    df[features] = df[features].astype('category')
 
     le = dict()
     for feat in features:
@@ -388,7 +388,7 @@ le['locale'].inverse_transform([18])
 
 # Now, let's do some trick to include the `sites` that contains multiple-entries.
 
-# In[ ]:
+# In[29]:
 
 
 df_ml = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
@@ -400,24 +400,25 @@ for new_feat in sites_keys:
     
 df_ml = df_ml.join(df).drop(columns={'keys', 'values', 'sites'})
 
-df_ml = df_ml[features + ['site', 'joe',]]
+features += ['site']
+df_ml = df_ml[features + ['joe',]]
 
 df_ml.head()
 
 
-# In[ ]:
+# In[30]:
 
 
-df_ml, le = categorize(df_ml, features + ['site', 'joe'])
+df_ml, le = categorize(df_ml, features + ['joe'])
 
 
 X_train, X_test, y_train, y_test = split_data(
-    df_ml, 'joe', test_size=.1, random_state=42)
+    df_ml, 'joe', test_size=.2, random_state=42)
 
 print(len(y_test), 'samples in the test dataset.')
 
 
-# In[ ]:
+# In[31]:
 
 
 # options: DecisionTreeClassifier AdaBoostClassifier BaggingClassifier RandomForestClassifier KNeighborsClassifier GradientBoostingClassifier
@@ -431,7 +432,7 @@ print_scores(y_pred, y_test)
 # 
 # The new classifier performance is much better than the previous one to the point that it can be deployed.
 
-# In[ ]:
+# In[32]:
 
 
 model.get_depth()
@@ -443,7 +444,7 @@ model.get_depth()
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[ ]:
+# In[33]:
 
 
 # convert Notebook to Python for better version control
