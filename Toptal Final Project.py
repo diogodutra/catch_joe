@@ -21,7 +21,7 @@ import os
 os.environ["PATH"] += os.pathsep + 'C:/Users/Diogo/anaconda3/Library/bin/graphviz'
 
 
-# The present Jupyter Notebook explains the process of creating a predictive model to classify an user access as Joe or not_joe using this [dataset](https://drive.google.com/file/d/1nATkzOZUe6w5IWcFNE3AakzBl-6P-5Hw/view?usp=sharing).
+# The present Jupyter Notebook explains the process of creating a predictive model to classify an user access as **Joe** or **not-Joe** using this [dataset](https://drive.google.com/file/d/1nATkzOZUe6w5IWcFNE3AakzBl-6P-5Hw/view?usp=sharing).
 # 
 # The sections are numbered as follows:
 # 
@@ -53,7 +53,8 @@ file = 'data/dataset.json'
 df = pd.read_json(file)
 
 # create target label as a separate column for supervised learning
-df['joe'] = df['user_id'] == 0
+user_id_joe = 0
+df['joe'] = df['user_id'] == user_id_joe
 
 df.head()
 
@@ -387,7 +388,7 @@ le['locale'].inverse_transform([18])
 
 # Now, let's do some trick to include the `sites` that contains multiple-entries.
 
-# In[29]:
+# In[ ]:
 
 
 df_ml = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
@@ -404,17 +405,19 @@ df_ml = df_ml[features + ['site', 'joe',]]
 df_ml.head()
 
 
-# In[30]:
+# In[ ]:
 
 
 df_ml, le = categorize(df_ml, features + ['site', 'joe'])
 
 
 X_train, X_test, y_train, y_test = split_data(
-    df_ml, 'joe', test_size=.5, random_state=42)
+    df_ml, 'joe', test_size=.1, random_state=42)
+
+print(len(y_test), 'samples in the test dataset.')
 
 
-# In[31]:
+# In[ ]:
 
 
 # options: DecisionTreeClassifier AdaBoostClassifier BaggingClassifier RandomForestClassifier KNeighborsClassifier GradientBoostingClassifier
@@ -428,7 +431,7 @@ print_scores(y_pred, y_test)
 # 
 # The new classifier performance is much better than the previous one to the point that it can be deployed.
 
-# In[32]:
+# In[ ]:
 
 
 model.get_depth()
@@ -440,7 +443,7 @@ model.get_depth()
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[33]:
+# In[ ]:
 
 
 # convert Notebook to Python for better version control
