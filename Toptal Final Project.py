@@ -465,7 +465,7 @@ le['locale'].inverse_transform([18])
 
 # Let's try the performance of other more sophisticted models.
 
-# In[34]:
+# In[39]:
 
 
 models = [
@@ -477,6 +477,8 @@ models = [
     KNeighborsClassifier(n_neighbors=2),
 ]
 
+print('Accuracy\tModel')
+
 score_best = -np.Inf
 i_best = -1
 for i_model, model in enumerate(models):
@@ -484,7 +486,7 @@ for i_model, model in enumerate(models):
     y_pred = model.predict(X_test)
     score = accuracy_score(y_pred, y_test)
         
-    print('{0:.4%}'.format(score), type(model).__name__)
+    print('{0:.4%}\t'.format(score), type(model).__name__)
     if score > score_best:
         score_best = score
         i_best = i_model
@@ -541,7 +543,7 @@ print('{0:.0%} of the Verification dataset is detected as Joe\'s access.'.format
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[ ]:
+# In[37]:
 
 
 # convert Notebook to Python for better version control
