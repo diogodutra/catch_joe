@@ -40,7 +40,6 @@ os.environ["PATH"] += os.pathsep + 'C:/Users/Diogo/anaconda3/Library/bin/graphvi
 # 1. Predictive Model
 #     - Naïve Analysis
 #     - Decision Tree
-#     - Adding websites
 # 1. Save
 
 # # 1 Load dataset
@@ -59,13 +58,23 @@ df['joe'] = df['user_id'] == user_id_joe
 df.head()
 
 
+# In[3]:
+
+
+# split dataset into train and test
+
+test_ratio = 0.3
+df_test = df.sample(frac=test_ratio, random_state=42)
+df = df.drop(df_test.index) # train dataset
+
+
 # # 2 Data Exploration
 
 # ## 2.1 Gender
 
 # The first feature to be explored is `gender`. Let's explore the hypothesis that Joe never changed their gender.
 
-# In[3]:
+# In[4]:
 
 
 sns.catplot(x='joe', hue='gender', kind='count', data=df)
@@ -75,7 +84,7 @@ sns.catplot(x='joe', hue='gender', kind='count', data=df)
 
 # ## 2.2 Location
 
-# In[4]:
+# In[5]:
 
 
 locations = list(set(df['location']))
@@ -84,13 +93,13 @@ print(len(locations), 'locations in the dataset:', *locations)
 
 # Let's now explore `location`. Unless Joe works in a cruising ship, probably he has limited variation of location around the globe so let's explore this hypothesis.
 
-# In[5]:
+# In[6]:
 
 
 sns.catplot(x='joe', hue='location', kind='count', data=df)
 
 
-# In[6]:
+# In[7]:
 
 
 Counter(df[df['joe']]['location'])
@@ -102,13 +111,13 @@ Counter(df[df['joe']]['location'])
 
 # Let's now explore `locale`. It is rare to find an active polyglot so let's explore this hypothesis.
 
-# In[7]:
+# In[8]:
 
 
 sns.catplot(x='joe', hue='locale', kind='count', data=df)
 
 
-# In[8]:
+# In[9]:
 
 
 Counter(df[df['joe']]['locale'])
@@ -120,7 +129,7 @@ Counter(df[df['joe']]['locale'])
 
 # If Joe is not a geek than he is probably using only one or two different `os`.
 
-# In[9]:
+# In[10]:
 
 
 sns.catplot(x='joe', hue='os', kind='count', data=df)
@@ -132,7 +141,7 @@ sns.catplot(x='joe', hue='os', kind='count', data=df)
 
 # For the same reason explained before for the OS, Joe is probably using only a couple of `browsers`.
 
-# In[10]:
+# In[11]:
 
 
 sns.catplot(x='joe', hue='browser', kind='count', data=df)
@@ -144,15 +153,18 @@ sns.catplot(x='joe', hue='browser', kind='count', data=df)
 
 # Let's now verify the hypothesis that Joe accesses internet only in some specific hours of the day.
 
-# In[11]:
+# In[12]:
 
 
-df['hour'] = [int(time.split(':')[0]) for time in df['time']]
+def extract_hour(df):
+    return [int(time.split(':')[0]) for time in df['time']]
 
+
+df['hour'] = extract_hour(df)
 sns.catplot(x='joe', hue='hour', kind='count', data=df)
 
 
-# In[12]:
+# In[13]:
 
 
 print('Hours of the day with Joe\'s accesses:', *set(df[df['joe']]['hour']))
@@ -164,7 +176,7 @@ print('Hours of the day with Joe\'s accesses:', *set(df[df['joe']]['hour']))
 
 # Following the rationale from the previous subsection, let's verify the hypothesis that Joe accesses internet only in some specific days of the week.
 
-# In[13]:
+# In[14]:
 
 
 df['weekday'] = [date.day_name() for date in df['date']]
@@ -172,7 +184,7 @@ df['weekday'] = [date.day_name() for date in df['date']]
 sns.catplot(x='joe', hue='weekday', kind='count', data=df)
 
 
-# In[14]:
+# In[15]:
 
 
 Counter(df[df['joe']]['weekday'])
@@ -184,7 +196,7 @@ Counter(df[df['joe']]['weekday'])
 
 # Let's verify if Joe has different frequency of accesses along the days of the month.
 
-# In[15]:
+# In[16]:
 
 
 df['monthday'] = [date.day for date in df['date']]
@@ -198,7 +210,7 @@ sns.catplot(x='joe', hue='monthday', kind='count', data=df)
 
 # Now let's check if there is any useful pattern along the months of the year.
 
-# In[16]:
+# In[17]:
 
 
 df['month'] = [date.month for date in df['date']]
@@ -210,21 +222,25 @@ sns.catplot(x='joe', hue='month', kind='count', data=df)
 
 # ## 2.10 Duration
 
-# In[17]:
+# In[18]:
 
 
-df['duration'] = [sum(map(lambda x: x.get('length'), sites)) for sites in df['sites']]
+def extract_duration(df):
+    return [sum(map(lambda x: x.get('length'), sites)) for sites in df['sites']]
+
+
+df['duration'] = extract_duration(df)
 
 
 # Plotting the duration would be a bit harder to analyse. Intead, let's compare the duration statistics of the population against Joe's.
 
-# In[18]:
+# In[19]:
 
 
 df['duration'].describe()
 
 
-# In[19]:
+# In[20]:
 
 
 df[df['joe']]['duration'].describe()
@@ -232,19 +248,66 @@ df[df['joe']]['duration'].describe()
 
 # Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it is slightly off the population statistics so it might have some useful correlation with other features.
 
+# In[21]:
+
+
+sites_joe = {site.get('site') for sites in df[df['joe']]['sites'] for site in sites}
+print(len(sites_joe), 'sites accessed by Joe.')
+
+
+# In[22]:
+
+
+def intersection_ratio(set_this, set_reference):
+    return len(set(set_this) & set(set_reference)) / len(set(set_this)) if len(set(set_this)) > 0 else 0
+
+
+def extract_sites_ratio(df):
+    return [intersection_ratio([site.get('site') for site in sites], sites_joe)
+                       for sites in df['sites']]
+
+
+df['sites_ratio'] = extract_sites_ratio(df)
+df[~df['joe']]['sites_ratio'].describe()
+
+
+# In[23]:
+
+
+# sites_ratio = np.array(extract_sites_ratio(df))
+
+# print(sites_ratio.mean())
+# print(sites_ratio.std())
+
+
+# In[24]:
+
+
+def extract_site_old(df):
+    return [not {site.get('site') for site in sites}.isdisjoint(sites_joe)
+                       for sites in df['sites']]
+
+
+df['site_old'] = extract_site_old(df)
+
+sns.catplot(x='joe', hue='site_old', kind='count', data=df)
+
+
 # # 3 Predictive Model
 
 # ## 3.1 Naïve Analysis
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe. However, how many logs by chance match exactly at the same time all these features? 
 
-# In[20]:
+# In[25]:
 
 
 df_like_joe = df.copy()
 
 # extract set of single entries from Joe's logs
 features = ['gender', 'location', 'os', 'browser', 'locale', 'hour', 'duration']
+# features += ['site_old']
+# features += ['sites_ratio']
 filter_data = {feat: set(df[df['joe']][feat]) for feat in features}
 
 for feature, valid_entries in filter_data.items():
@@ -266,7 +329,7 @@ print('Like-Joe dataset contains', df_like_joe.shape[0], 'logs',
 # 
 # But how many of the left logs are our Joe indeed?
 
-# In[21]:
+# In[26]:
 
 
 count = Counter(df_like_joe['joe'])
@@ -278,7 +341,7 @@ is_joe = list(is_joe / is_joe.sum())
 print('False and True accesses ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
-# In[22]:
+# In[27]:
 
 
 user_id_like_joe = set(df_like_joe['user_id'])
@@ -293,19 +356,24 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 # 
 # Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
 
-# In[23]:
+# In[28]:
 
 
-def encode_features(df, features):
+def categorize(df, features):
 
     df[features] = df[features].astype('category')
 
-    le = dict()
-    for feat in features:
-        le[feat] = LabelEncoder()
-        df[feat] = le[feat].fit_transform(df[feat])
+    le = {feat: LabelEncoder().fit(df[feat]) for feat in features}
         
     return df, le
+
+
+def encode_features(df, features, le):
+
+    for feat in features:
+        df[feat] = le[feat].transform(df[feat])
+        
+    return df
         
 
 def encode_joe(is_joe_bool_list, encode_dict={True: user_id_joe, False: 1}):
@@ -314,27 +382,33 @@ def encode_joe(is_joe_bool_list, encode_dict={True: user_id_joe, False: 1}):
     
 df_ml = df[features + ['joe']].copy()
 features_categorical = ['gender', 'location', 'os', 'browser', 'locale', 'hour']
-df_ml, le = encode_features(df_ml, features_categorical)
+# features_categorical += ['site_old']
+df_ml, le = categorize(df_ml, features_categorical)
+df_ml = encode_features(df_ml, features_categorical, le)
 df_ml['joe'] = encode_joe(df_ml['joe'])
 
 df_ml.head()
 
 
-# In[24]:
+# In[29]:
 
 
-def split_data(df, label, **kwargs):
-    features = list(df.columns).copy()
-    features.remove(label)
-    X, y = df[features].values, df[label].values
-    return train_test_split(X, y, **kwargs)
-    
-    
-X_train, X_test, y_train, y_test = split_data(
-    df_ml, 'joe', test_size=.5, random_state=42)
+X_train = df_ml[features].values
+y_train = df_ml['joe']
+
+df_test['duration'] = extract_duration(df_test)
+df_test['hour'] = extract_hour(df_test)
+df_test['sites_ratio'] = extract_sites_ratio(df_test)
+df_test['site_old'] = extract_site_old(df_test)
+df_test[features_categorical] = df_test[features_categorical].astype('category')
+df_test = encode_features(df_test, features_categorical, le)
+X_test = df_test[features].values
+
+y_test = encode_joe(df_test['joe'])
+df_test['joe'] = y_test
 
 
-# In[25]:
+# In[30]:
 
 
 def create_model(X_train, y_train, classifier=DecisionTreeClassifier(max_depth=3)):
@@ -344,13 +418,13 @@ def create_model(X_train, y_train, classifier=DecisionTreeClassifier(max_depth=3
 model = create_model(X_train, y_train)
 
 
-# In[26]:
+# In[31]:
 
 
 def print_scores(y_pred, y_test):
-    print('{0:.2%}'.format(accuracy_score(y_pred, y_test)), 'is the accuracy of the classifier.')
-    print('{0:.2%}'.format(recall_score(y_pred, y_test, pos_label=0)), 'of the detections are truly from Joe.')
-    print('{0:.2%}'.format(precision_score(y_pred, y_test, pos_label=0)), 'of the Joe\'s accesses are not detected.')
+    print('{0:.4%}'.format(accuracy_score(y_pred, y_test)), 'is the accuracy of the classifier.')
+    print('{0:.0%}'.format(recall_score(y_pred, y_test, pos_label=0)), 'of the detections are truly from Joe.')
+    print('{0:.0%}'.format(precision_score(y_pred, y_test, pos_label=0)), 'of the Joe\'s accesses are not detected.')
     
     
 y_pred = model.predict(X_test)
@@ -363,7 +437,7 @@ print_scores(y_pred, y_test)
 # 
 # In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
 
-# In[27]:
+# In[32]:
 
 
 dtreeviz(model, X_train, y_train,
@@ -372,7 +446,7 @@ dtreeviz(model, X_train, y_train,
                 class_names=['Joe', 'not Joe'])
 
 
-# In[28]:
+# In[33]:
 
 
 le['locale'].inverse_transform([18])
@@ -382,88 +456,51 @@ le['locale'].inverse_transform([18])
 # 1. If the language (`locale`) is less than 17.5 then is not Joe with 100% of certainty; else ...
 # 1. If the language (`locale`) is more than 18.5 then is is not Joe with 100% of certainty; else ...
 # 1. If the duration of access is less than 3.5 than it is Joe with 100% of certainty; else ...
-# 1. We run out of questions so it guesses it is not Joe with 18% of error.
+# 1. We run out of questions so it guesses it is not Joe with roughly 20% of error.
 # 
 # Mind that `locale = 18` is the Russian language as coded by the `LabelEncoder`. Therefore, the first 2 questions above are mainly telling us that if the language of access is not Russian than it is not 
 # Joe for sure.
 # 
 # Another observtion is that the `duration` alone feature was not useful, as explained in the previous section. However, it became useful for the remaining cases that are exclusivelly Russian speakers.
 
-# Other similar types of classifiers (ie: DecisionTree with unlimited maximum depth, AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
-# and KNeighborsClassifier) resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
-
-# ## 3.3 Adding Websites
-
-# Now, let's do some trick to include the `sites` that contains multiple-entries.
-
-# In[29]:
-
-
-def extract_sites(df):
-    df_ml = pd.DataFrame(pd.DataFrame(df['sites'].values.tolist()).stack().reset_index(level=1))
-    df_ml.columns = ['keys', 'values']
-
-    sites_keys = list(df['sites'].values[0][0].keys())
-    for new_feat in sites_keys:
-        df_ml[new_feat] = [v.get(new_feat) for v in df_ml['values']]
-
-    df_ml = df_ml.join(df).drop(columns={'keys', 'values', 'sites'})
-    
-    return df_ml
-
-    
-df_ml = extract_sites(df)
-features += ['site']
-df_ml = df_ml[features + ['joe',]]
-
-df_ml.head()
-
-
-# In[30]:
-
-
-df_ml, le = encode_features(df_ml, features)
-
-
-X_train, X_test, y_train, y_test = split_data(
-    df_ml, 'joe', test_size=.3, random_state=42)
-
-print(len(y_test), 'samples in the test dataset.')
-
-
-# In[31]:
-
-
-df_ml.head()
-
-
-# In[32]:
-
-
-# options: DecisionTreeClassifier AdaBoostClassifier BaggingClassifier RandomForestClassifier KNeighborsClassifier GradientBoostingClassifier
-model = create_model(X_train, y_train, DecisionTreeClassifier())
-
-y_pred = model.predict(X_test)
-print_scores(y_pred, y_test)
-
-
-# It seems that `sites` is an useful information indeed. Let's add it to the features.
-# 
-# The new classifier performance is much better than the previous one to the point that it can be deployed.
-
-# In[33]:
-
-
-features_categorical += ['site']
-
+# Let's try the performance of other more sophisticted models.
 
 # In[34]:
 
 
-model.get_depth()
+models = [
+    DecisionTreeClassifier(),
+    AdaBoostClassifier(),
+    BaggingClassifier(),
+    RandomForestClassifier(),
+    GradientBoostingClassifier(),
+    KNeighborsClassifier(n_neighbors=2),
+]
+
+score_best = -np.Inf
+i_best = -1
+for i_model, model in enumerate(models):
+    model = create_model(X_train, y_train, model)
+    y_pred = model.predict(X_test)
+    score = accuracy_score(y_pred, y_test)
+        
+    print('{0:.4%}'.format(score), type(model).__name__)
+    if score > score_best:
+        score_best = score
+        i_best = i_model
+    
+    
+y_pred = models[i_best].predict(X_test)
+
+print()
+print('Best model:', type(models[i_best]).__name__)
+print_scores(y_pred, y_test)
 
 
-# This time we are not plotting the nodes of the Decision Tree simply because it needs many more depths (as shown above) than the previous one (3), which makes it harder to visualize. But the logic is the same: it is just a matter successively questioning the values of the features (nodes) and using the answer (branch) to follow to the next question (next node) until landing into a position without further questions (end node), which contains instead a classification (in our case, Joe or not-Joe).
+# Other similar types of classifiers (ie: DecisionTree with unlimited maximum depth, AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
+# and KNeighborsClassifier) resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
+
+# The new classifier performance is much better than the previous one to the point that it can be deployed.
 
 # # 4 Save
 
@@ -472,56 +509,39 @@ model.get_depth()
 # In[35]:
 
 
-def encode(df, features, le):
-
-    for feat in features:
-        df[feat] = le[feat].transform(df[feat])
-        
-    return df
-
-
-# In[36]:
-
-
 # load the input file
 df_verify = pd.read_json('./data/verify.json')
 
 # add some features
-df_verify['hour'] = [int(time.split(':')[0]) for time in df_verify['time']]
-df_verify['duration'] = [sum(map(lambda x: x.get('length'), sites)) for sites in df_verify['sites']]
-df_verify = extract_sites(df_verify)
+df_verify['hour'] = extract_hour(df_verify)
+df_verify['duration'] = extract_duration(df_verify)
+df_verify['sites_ratio'] = extract_sites_ratio(df_verify)
 
 # remove some unused features
 df_verify = df_verify[features]
 
 # convert features into category type
-df_verify = encode(df_verify, features_categorical, le)
+df_verify = encode_features(df_verify, features_categorical, le)
 
 
 df_verify.head()
 
 
-# In[41]:
+# In[36]:
 
 
 y_infered = model.predict(df_verify.values)
 count = Counter(y_infered)
 print(count)
-percentage = count[True] / (count[True] + count[False])
-print(percentage)
-
-
-# In[42]:
-
-
-print(df[df['joe']].shape[0] / df.shape[0])
+percentage = count[0] / (count[1] + count[0])
+print('{0:.0%} of the Verification dataset is detected as Joe\'s access.'.format(percentage))
 
 
 # ## 4.2 Exporting this Notebook
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[39]:
+# In[ ]:
 
 
 # convert Notebook to Python for better version control
