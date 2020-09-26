@@ -17,9 +17,33 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 from sklearn import tree
 from dtreeviz.trees import dtreeviz
+import os
+os.environ["PATH"] += os.pathsep + 'C:/Users/Diogo/anaconda3/Library/bin/graphviz'
 
 
-# # Load dataset
+# The present Jupyter Notebook explains the process of creating a predictive model to classify an user access as Joe or not_joe using this [dataset](https://drive.google.com/file/d/1nATkzOZUe6w5IWcFNE3AakzBl-6P-5Hw/view?usp=sharing).
+# 
+# The sections are numbered as follows:
+# 
+# 1. Load dataset
+# 1. Data Exploration
+#     - Location
+#     - Gender
+#     - Language
+#     - Operating System
+#     - Browser
+#     - Time of the day
+#     - Day of the week
+#     - Day of the month
+#     - Month of the year
+#     - Duration
+# 1. Predictive Model
+#     - Naïve Analysis
+#     - Decision Tree
+#     - Adding websites
+# 1. Save
+
+# # 1 Load dataset
 
 # In[2]:
 
@@ -34,9 +58,9 @@ df['joe'] = df['user_id'] == 0
 df.head()
 
 
-# # Data Exploration
+# # 2 Data Exploration
 
-# ## Gender
+# ## 2.1 Gender
 
 # The first feature to be explored is `gender`. Let's explore the hypothesis that Joe never changed their gender.
 
@@ -48,7 +72,7 @@ sns.catplot(x='joe', hue='gender', kind='count', data=df)
 
 # It seems that Joe is a male, since there is no log on his name as female. This insight is useful to discard around 40% of the dataset.
 
-# ## Location
+# ## 2.2 Location
 
 # In[4]:
 
@@ -73,7 +97,7 @@ Counter(df[df['joe']]['location'])
 
 # Joe has access logs from Paris, Chicago and Toronto only. This is helpful to discard the other 18 locations.
 
-# ## Language
+# ## 2.3 Language
 
 # Let's now explore `locale`. It is rare to find an active polyglot so let's explore this hypothesis.
 
@@ -91,7 +115,7 @@ Counter(df[df['joe']]['locale'])
 
 # Despite the fact that Joe has many access from France, USA and Canada, his sessions are always in Russian language. Again, this eliminates all the other languages.
 
-# ## Operating System
+# ## 2.4 Operating System
 
 # If Joe is not a geek than he is probably using only one or two different `os`.
 
@@ -103,7 +127,7 @@ sns.catplot(x='joe', hue='os', kind='count', data=df)
 
 # Indeed, Joe uses only Ubuntu and Windows 10. This rules out MacOS, Debian and the rest of the Microsoft's OS.
 
-# ## Browser
+# ## 2.5 Browser
 
 # For the same reason explained before for the OS, Joe is probably using only a couple of `browsers`.
 
@@ -115,7 +139,7 @@ sns.catplot(x='joe', hue='browser', kind='count', data=df)
 
 # Again, Joe uses only Firefox and Chrome, leaving out Internet Explorer and Safari.
 
-# ## Time of the day
+# ## 2.6 Time of the day
 
 # Let's now verify the hypothesis that Joe accesses internet only in some specific hours of the day.
 
@@ -135,7 +159,7 @@ print('Hours of the day with Joe\'s accesses:', *set(df[df['joe']]['hour']))
 
 # It seems that Joe never accesses internet at some specific hours of the day. Therefore, this is yet another relevant information to be used by our classifier.
 
-# ## Day of the week
+# ## 2.7 Day of the week
 
 # Following the rationale from the previous subsection, let's verify the hypothesis that Joe accesses internet only in some specific days of the week.
 
@@ -155,7 +179,7 @@ Counter(df[df['joe']]['weekday'])
 
 # There is no particular day of the week that shows an unusual history of access from Joe, so let's drop this feature.
 
-# ## Day of the month
+# ## 2.8 Day of the month
 
 # Let's verify if Joe has different frequency of accesses along the days of the month.
 
@@ -169,7 +193,7 @@ sns.catplot(x='joe', hue='monthday', kind='count', data=df)
 
 # There is no unusual pattern to be extracted out of the day of the month.
 
-# ## Month of the year
+# ## 2.9 Month of the year
 
 # Now let's check if there is any useful pattern along the months of the year.
 
@@ -182,6 +206,8 @@ sns.catplot(x='joe', hue='month', kind='count', data=df)
 
 
 # Again, nothing useful from the month of the year.
+
+# ## 2.10 Duration
 
 # In[17]:
 
@@ -205,7 +231,9 @@ df[df['joe']]['duration'].describe()
 
 # Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it might have some useful correlation with other features.
 
-# # Predictive Model
+# # 3 Predictive Model
+
+# ## 3.1 Naïve Analysis
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe. However, how many logs by chance match exactly at the same time all these features? 
 
@@ -258,7 +286,7 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 
 # Despite the fact that the filter previously mentioned has efficiently removed most of the dataset, there are yet some logs from a few people with enough occurencies to be a majority over Joe. This is yet something to be tackled, since we don't want these people being taken as Joe.
 
-# # Decision Tree
+# ## 3.2 Decision Tree
 
 # Maybe, the cross combination of restrictions across different features is enough to find Joe out of the other few people above. For instance, Joe might be the only one who uses Firefox (`browser`) on Windows 10 (`os`).
 # 
@@ -320,9 +348,9 @@ y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The Decision Tree presents an average performance. However, it is far from flawless since there are too many false detections which causes some accesses to be misclassified as Joe's.
+# The Decision Tree presents an average performance. However, it is far from excellent since there are too many false detections which causes some accesses to be misclassified as Joe's.
 
-# Before we move on, a question... How exactly does this Decision Tree work in order to classify?
+# Before we move on to improve the performance, here is a question. How exactly does this Decision Tree above work in order to classify?
 # 
 # In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
 
@@ -355,7 +383,7 @@ le['locale'].inverse_transform([18])
 # Other similar types of classifiers (ie: DecisionTree with unlimited maximum depth, AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
 # and KNeighborsClassifier) resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
 
-# # Websites
+# ## 3.3 Adding Websites
 
 # Now, let's do some trick to include the `sites` that contains multiple-entries.
 
@@ -398,7 +426,7 @@ print_scores(y_pred, y_test)
 
 # It seems that `sites` is an useful feature indeed.
 # 
-# Now, the classifier performance is much better than the previous one to the point that it can be deployed.
+# The new classifier performance is much better than the previous one to the point that it can be deployed.
 
 # In[32]:
 
@@ -408,7 +436,7 @@ model.get_depth()
 
 # This time we are not plotting the nodes of the Decision Tree simply because it needs many more depths (36) than the previous one (3), which makes it harder to visualize. But the logic is the same: it is just a matter successively questioning the values of the features (nodes) and using the answer (branch) to follow to the next question (next node) until landing into a position without further questions (end node), which contains instead a classification (in our case, Joe or not-Joe).
 
-# # Save
+# # 4 Save
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
