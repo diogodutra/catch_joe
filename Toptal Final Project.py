@@ -4,6 +4,9 @@
 # # TODO:
 # - [x] Split dataset in chronological order
 # - [ ] Improve classifier performance
+#     - [ ] Add websites as feature
+#     - [ ] Replace LabelEncode by OneHotEncode
+#     - [ ] Change metric
 # - [ ] Handle unseen labels
 # - [ ] Create standalone script
 # - [ ] Add readme
@@ -72,9 +75,9 @@ df.head()
 # in chronological order (not random)
 
 test_ratio = 0.1
-df_test = df.sort_values(by='date').tail(int(test_ratio * df.shape[0]))
+df_later = df.sort_values(by='date').tail(int(test_ratio * df.shape[0]))
 
-df = df.drop(df_test.index) # train dataset
+df = df.drop(df_later.index) # train dataset
 
 df.shape
 
@@ -285,8 +288,8 @@ df[~df['joe']]['sites_ratio'].describe()
 # In[23]:
 
 
-df_test['sites_ratio'] = extract_sites_ratio(df_test)
-df_test[df_test['joe']]['sites_ratio'].describe()
+df_later['sites_ratio'] = extract_sites_ratio(df_later)
+df_later[df_later['joe']]['sites_ratio'].describe()
 
 
 # In[24]:
@@ -298,9 +301,9 @@ def extract_site_old(df):
 
 
 df['site_old'] = extract_site_old(df)
-df_test['site_old'] = extract_site_old(df_test)
+df_later['site_old'] = extract_site_old(df_later)
 
-sns.catplot(x='joe', hue='site_old', kind='count', data=df_test)
+sns.catplot(x='joe', hue='site_old', kind='count', data=df_later)
 
 
 # In[25]:
@@ -481,26 +484,32 @@ print_scores(y_pred, y_train)
 
 # run preprocessing pipeline on test dataset
 
-# def dataset(df, features, features_categorical):
-df_test['duration'] = extract_duration(df_test)
-df_test['hour'] = extract_hour(df_test)
-df_test['sites_ratio'] = extract_sites_ratio(df_test)
-df_test['site_old'] = extract_site_old(df_test)
-
-df_test[features_categorical] = df_test[features_categorical].astype('category')
-df_test = encode_features(df_test, features_categorical, le)
-df_test = df_test[features + ['joe']]
-
-X_test = df_test[features].values
-
-y_test = encode_joe(df_test['joe'])
-df_test['joe'] = y_test
+def transform_features(df, features, features_categorical):
     
-#     return df, X, y
+    df = df.copy()
+    
+    # add some features
+    new_features = {
+        'duration': extract_duration,
+        'hour': extract_hour,
+        'sites_ratio': extract_sites_ratio,
+        'site_old': extract_site_old,
+    }
+    
+    for feat_name, feat_func in new_features.items():
+        if feat_name in features: df[feat_name] = feat_func(df)
+
+    # convert features into category type
+    df[features_categorical] = df[features_categorical].astype('category')
+    df = encode_features(df, features_categorical, le)
+    
+    return df[features]
 
 
-# df_train, X_train, y_train = dataset(df_test, features, features_categorical)
-# df_test, X_test, y_test = dataset(df_test, features, features_categorical)
+df_test = df_later.copy()
+y_test = encode_joe(df_test['user_id'] == user_id_joe)
+df_test = transform_features(df_later, features, features_categorical)
+X_test = df_test[features].values
 
 
 # In[35]:
@@ -530,19 +539,13 @@ print_scores(y_pred, y_test)
 # In[37]:
 
 
-dtreeviz(model, X_train, y_train,
-                target_name="target",
-                feature_names=features,
-                class_names=['Joe', 'not Joe'])
+# dtreeviz(model, X_train, y_train,
+#                 target_name="target",
+#                 feature_names=features,
+#                 class_names=['Joe', 'not Joe'])
 
 
 # In[38]:
-
-
-stop
-
-
-# In[ ]:
 
 
 le['locale'].inverse_transform([18])
@@ -561,11 +564,11 @@ le['locale'].inverse_transform([18])
 
 # Let's try the performance of other more sophisticted models.
 
-# In[ ]:
+# In[39]:
 
 
 models = [
-    DecisionTreeClassifier(),
+#     DecisionTreeClassifier(),
     AdaBoostClassifier(),
     BaggingClassifier(),
     RandomForestClassifier(),
@@ -573,10 +576,10 @@ models = [
     KNeighborsClassifier(n_neighbors=2),
 ]
 
-print('Accuracy\t Model')
+print('Test Score\t Model')
 
 score_best = -np.Inf
-i_best = -1
+best_model = -1
 for i_model, model in enumerate(models):
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
@@ -585,17 +588,20 @@ for i_model, model in enumerate(models):
     print('{0:.4%}\t'.format(score), type(model).__name__)
     if score > score_best:
         score_best = score
-        i_best = i_model
+        best_model = model
     
 
 
-print()
-print('Best model:', type(models[i_best]).__name__)
-y_pred = models[i_best].predict(X_test)
+print('\nBest model:', type(best_model).__name__)
+
+print('\nPerformance on train dataset:')
+y_pred = best_model.predict(X_train)
+print_scores(y_pred, y_train)
+
+print('\nPerformance on test dataset:')
+y_pred = best_model.predict(X_test)
 print_scores(y_pred, y_test)
 
-
-# Other more sophisticated classifiers resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
 
 # The new classifier performance is much better than the previous one to the point that it can be deployed.
 
@@ -603,28 +609,49 @@ print_scores(y_pred, y_test)
 
 # ## 4.1 Saving the model
 
-# In[ ]:
+# In[40]:
 
 
 # load the input file
 df_verify = pd.read_json('./data/verify.json')
 
-# add some features
-df_verify['hour'] = extract_hour(df_verify)
-df_verify['duration'] = extract_duration(df_verify)
-df_verify['sites_ratio'] = extract_sites_ratio(df_verify)
+df_verify = transform_features(df_verify, features, features_categorical)
 
-# remove some unused features
-df_verify = df_verify[features]
 
-# convert features into category type
-df_verify = encode_features(df_verify, features_categorical, le)
+# In[41]:
+
+
+features
+
+
+# In[42]:
 
 
 df_verify.head()
 
 
-# In[ ]:
+# In[43]:
+
+
+# # load the input file
+# df_verify = pd.read_json('./data/verify.json')
+
+# # add some features
+# df_verify['hour'] = extract_hour(df_verify)
+# df_verify['duration'] = extract_duration(df_verify)
+# df_verify['sites_ratio'] = extract_sites_ratio(df_verify)
+
+# # remove some unused features
+# df_verify = df_verify[features]
+
+# # convert features into category type
+# df_verify = encode_features(df_verify, features_categorical, le)
+
+
+# df_verify.head()
+
+
+# In[44]:
 
 
 y_infered = model.predict(df_verify.values)
@@ -638,9 +665,9 @@ print('{0:.0%} of the Verification dataset is detected as Joe\'s access.'.format
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[ ]:
+# In[45]:
 
 
 # convert Notebook to Python for better version control
-get_ipython().system(' jupyter nbconvert --to script "Toptal Final Project.ipynb" --output-dir="./code/diogo-dutra"')
+# ! jupyter nbconvert --to script "Toptal Final Project.ipynb" --output-dir="./code/diogo-dutra"
 
