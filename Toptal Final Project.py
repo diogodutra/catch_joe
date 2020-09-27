@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# # TODO:
+# - [x] Split dataset in chronological order
+# - [ ] Improve classifier performance
+# - [ ] Handle unseen labels
+# - [ ] Create standalone script
+# - [ ] Add readme
+
 # In[1]:
 
 
@@ -62,10 +69,14 @@ df.head()
 
 
 # split dataset into train and test
+# in chronological order (not random)
 
-test_ratio = 0.3
-df_test = df.sample(frac=test_ratio, random_state=42)
+test_ratio = 0.1
+df_test = df.sort_values(by='date').tail(int(test_ratio * df.shape[0]))
+
 df = df.drop(df_test.index) # train dataset
+
+df.shape
 
 
 # # 2 Data Exploration
@@ -274,10 +285,8 @@ df[~df['joe']]['sites_ratio'].describe()
 # In[23]:
 
 
-# sites_ratio = np.array(extract_sites_ratio(df))
-
-# print(sites_ratio.mean())
-# print(sites_ratio.std())
+df_test['sites_ratio'] = extract_sites_ratio(df_test)
+df_test[df_test['joe']]['sites_ratio'].describe()
 
 
 # In[24]:
@@ -289,8 +298,54 @@ def extract_site_old(df):
 
 
 df['site_old'] = extract_site_old(df)
+df_test['site_old'] = extract_site_old(df_test)
 
-sns.catplot(x='joe', hue='site_old', kind='count', data=df)
+sns.catplot(x='joe', hue='site_old', kind='count', data=df_test)
+
+
+# In[25]:
+
+
+sites_joe_list = list(sites_joe)
+
+def create_dataframe_lengths_per_site(df, n_sites=20):
+    sites_joe_length = np.zeros((df.shape[0], len(sites_joe)))
+    for i_row, sites in enumerate(df['sites']):
+        for site in sites:
+            try:
+                i_site = sites_joe_list.index(site.get('site'))
+                sites_joe_length[i_row, i_site] = site.get('length')
+            except:
+                # site not found in Joe's history
+                pass
+           
+    df_lengths = pd.DataFrame(sites_joe_length, columns=sites_joe_list)
+#     df_lengths = df_lengths.reindex(df_lengths.mean().sort_values().index, axis=1)
+#     df_lengths = df_lengths.loc
+    
+    return df_lengths
+                
+    
+    
+df_sites_joe_length = create_dataframe_lengths_per_site(df[df['joe']])
+df_sites_joe_length.mean().sort_values(ascending=False)
+
+
+# In[26]:
+
+
+df_sites_all_length = create_dataframe_lengths_per_site(df)
+df_sites_all_length.mean().sort_values(ascending=False)
+
+
+# In[27]:
+
+
+def extract_site_lengths(df):
+    return df.join(create_dataframe_lengths_per_site(df))
+
+
+df = extract_site_lengths(df)
 
 
 # # 3 Predictive Model
@@ -299,15 +354,18 @@ sns.catplot(x='joe', hue='site_old', kind='count', data=df)
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe. However, how many logs by chance match exactly at the same time all these features? 
 
-# In[25]:
+# In[28]:
 
 
 df_like_joe = df.copy()
 
 # extract set of single entries from Joe's logs
-features = ['gender', 'location', 'os', 'browser', 'locale', 'hour', 'duration']
+features = ['gender', 'os', 'browser', 'locale', 'hour', 'duration']
+features += ['location', ]
 # features += ['site_old']
 # features += ['sites_ratio']
+# features += sites_joe_list
+
 filter_data = {feat: set(df[df['joe']][feat]) for feat in features}
 
 for feature, valid_entries in filter_data.items():
@@ -315,9 +373,9 @@ for feature, valid_entries in filter_data.items():
 
     
 # extract set of multiple website entries from Joe's logs
-sites_joe = {site.get('site') for sites in df_like_joe['sites'] for site in sites}
-df_like_joe = df_like_joe[list(map(lambda x:
-                any(site.get('site') in sites_joe for site in x), df_like_joe['sites']))]
+# sites_joe = {site.get('site') for sites in df_like_joe['sites'] for site in sites}
+# df_like_joe = df_like_joe[list(map(lambda x:
+#                 any(site.get('site') in sites_joe for site in x), df_like_joe['sites']))]
     
     
 print('Original dataset contains', df.shape[0], 'logs.')
@@ -329,23 +387,23 @@ print('Like-Joe dataset contains', df_like_joe.shape[0], 'logs',
 # 
 # But how many of the left logs are our Joe indeed?
 
-# In[26]:
+# In[29]:
 
 
-count = Counter(df_like_joe['joe'])
-print(count)
+# count = Counter(df_like_joe['joe'])
+# print(count)
 
-is_joe = np.asarray(list(count.values()))
-is_joe = list(is_joe / is_joe.sum())
+# is_joe = np.asarray(list(count.values()))
+# is_joe = list(is_joe / is_joe.sum())
 
-print('False and True accesses ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
-
-
-# In[27]:
+# print('False and True accesses ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
-user_id_like_joe = set(df_like_joe['user_id'])
-print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_id_like_joe)
+# In[30]:
+
+
+# user_id_like_joe = set(df_like_joe['user_id'])
+# print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_id_like_joe)
 
 
 # Despite the fact that the filter previously mentioned has efficiently removed most of the dataset, there are yet some logs from a few people with enough occurencies to be a majority over Joe. This is yet something to be tackled, since we don't want these people being taken as Joe.
@@ -356,7 +414,7 @@ print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_
 # 
 # Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
 
-# In[28]:
+# In[31]:
 
 
 def categorize(df, features):
@@ -379,65 +437,97 @@ def encode_features(df, features, le):
 def encode_joe(is_joe_bool_list, encode_dict={True: user_id_joe, False: 1}):
     return [encode_dict[is_joe] for is_joe in is_joe_bool_list]
     
-    
-df_ml = df[features + ['joe']].copy()
-features_categorical = ['gender', 'location', 'os', 'browser', 'locale', 'hour']
+
+df_train = df[features + ['joe']].copy()
+features_categorical = ['gender', 'os', 'browser', 'locale', 'hour']
+features_categorical += ['location', ]
 # features_categorical += ['site_old']
-df_ml, le = categorize(df_ml, features_categorical)
-df_ml = encode_features(df_ml, features_categorical, le)
-df_ml['joe'] = encode_joe(df_ml['joe'])
 
-df_ml.head()
+df_train, le = categorize(df_train, features_categorical)
+df_train = encode_features(df_train, features_categorical, le)
+df_train['joe'] = encode_joe(df_train['joe'])
 
-
-# In[29]:
+df_train.head()
 
 
-X_train = df_ml[features].values
-y_train = df_ml['joe']
-
-df_test['duration'] = extract_duration(df_test)
-df_test['hour'] = extract_hour(df_test)
-df_test['sites_ratio'] = extract_sites_ratio(df_test)
-df_test['site_old'] = extract_site_old(df_test)
-df_test[features_categorical] = df_test[features_categorical].astype('category')
-df_test = encode_features(df_test, features_categorical, le)
-X_test = df_test[features].values
-
-y_test = encode_joe(df_test['joe'])
-df_test['joe'] = y_test
+# In[32]:
 
 
-# In[30]:
+X_train = df_train[features].values
+y_train = df_train['joe']
 
 
-def create_model(X_train, y_train, classifier=DecisionTreeClassifier(max_depth=3)):
-    return classifier.fit(X_train, y_train)
+# Before creating our predictive model, let's calculate the Naïve performance. We know that the majority of the data is not from Joe so the Naïve classifier always assume that the result is 1 (not Joe).
 
-
-model = create_model(X_train, y_train)
-
-
-# In[31]:
+# In[33]:
 
 
 def print_scores(y_pred, y_test):
     print('{0:.4%}'.format(accuracy_score(y_pred, y_test)), 'is the accuracy of the classifier.')
-    print('{0:.0%}'.format(recall_score(y_pred, y_test, pos_label=0)), 'of the detections are truly from Joe.')
-    print('{0:.0%}'.format(precision_score(y_pred, y_test, pos_label=0)), 'of the Joe\'s accesses are not detected.')
+    print('{0:.0%}'.format(recall_score(y_pred, y_test, pos_label=user_id_joe)), 'of the Joe\'s accesses are detected.')
+    print('{0:.0%}'.format(precision_score(y_pred, y_test, pos_label=user_id_joe)), 'of the detections are truly from Joe.')
+
+
+y_pred = [1] * len(y_train)
+
+print('Performance of Naïve on train dataset:')
+print_scores(y_pred, y_train)
+
+
+# As expected, the accuracy score is quite high because most of the data is not Joe (imbalanced). Moreover, precision and recall scores are obviously nulls because the Naïve blindly guessed it always as not Joe.
+
+# In[34]:
+
+
+# run preprocessing pipeline on test dataset
+
+# def dataset(df, features, features_categorical):
+df_test['duration'] = extract_duration(df_test)
+df_test['hour'] = extract_hour(df_test)
+df_test['sites_ratio'] = extract_sites_ratio(df_test)
+df_test['site_old'] = extract_site_old(df_test)
+
+df_test[features_categorical] = df_test[features_categorical].astype('category')
+df_test = encode_features(df_test, features_categorical, le)
+df_test = df_test[features + ['joe']]
+
+X_test = df_test[features].values
+
+y_test = encode_joe(df_test['joe'])
+df_test['joe'] = y_test
     
-    
+#     return df, X, y
+
+
+# df_train, X_train, y_train = dataset(df_test, features, features_categorical)
+# df_test, X_test, y_test = dataset(df_test, features, features_categorical)
+
+
+# In[35]:
+
+
+model = DecisionTreeClassifier(max_depth=3).fit(X_train, y_train)
+
+print('Performance on train dataset:')
+y_pred = model.predict(X_train)
+print_scores(y_pred, y_train)
+
+
+# In[36]:
+
+
+print('\nPerformance on test dataset:')
 y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The Decision Tree presents an average performance. However, it is far from excellent since there are too many missed accesses from Joe.
+# The Decision Tree presents a slight increase of performance when compared to the Naïve. However, it is far from excellent since there are too many missed accesses from Joe.
 
 # Before we move on to improve the performance, here is a question. How exactly does this Decision Tree above work in order to classify?
 # 
 # In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
 
-# In[32]:
+# In[37]:
 
 
 dtreeviz(model, X_train, y_train,
@@ -446,7 +536,13 @@ dtreeviz(model, X_train, y_train,
                 class_names=['Joe', 'not Joe'])
 
 
-# In[33]:
+# In[38]:
+
+
+stop
+
+
+# In[ ]:
 
 
 le['locale'].inverse_transform([18])
@@ -456,7 +552,7 @@ le['locale'].inverse_transform([18])
 # 1. If the language (`locale`) is less than 17.5 then is not Joe with 100% of certainty; else ...
 # 1. If the language (`locale`) is more than 18.5 then is is not Joe with 100% of certainty; else ...
 # 1. If the duration of access is less than 3.5 than it is Joe with 100% of certainty; else ...
-# 1. We run out of questions so it guesses it is not Joe with roughly 20% of error.
+# 1. We run out of questions so it guesses it is not Joe with roughly 10% of error.
 # 
 # Mind that `locale = 18` is the Russian language as coded by the `LabelEncoder`. Therefore, the first 2 questions above are mainly telling us that if the language of access is not Russian than it is not 
 # Joe for sure.
@@ -465,7 +561,7 @@ le['locale'].inverse_transform([18])
 
 # Let's try the performance of other more sophisticted models.
 
-# In[39]:
+# In[ ]:
 
 
 models = [
@@ -477,12 +573,12 @@ models = [
     KNeighborsClassifier(n_neighbors=2),
 ]
 
-print('Accuracy\tModel')
+print('Accuracy\t Model')
 
 score_best = -np.Inf
 i_best = -1
 for i_model, model in enumerate(models):
-    model = create_model(X_train, y_train, model)
+    model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     score = accuracy_score(y_pred, y_test)
         
@@ -491,16 +587,15 @@ for i_model, model in enumerate(models):
         score_best = score
         i_best = i_model
     
-    
-y_pred = models[i_best].predict(X_test)
+
 
 print()
 print('Best model:', type(models[i_best]).__name__)
+y_pred = models[i_best].predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# Other similar types of classifiers (ie: DecisionTree with unlimited maximum depth, AdaBoostClassifier, BaggingClassifier, RandomForestClassifier
-# and KNeighborsClassifier) resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
+# Other more sophisticated classifiers resulted in similar performance, which indicates that we need to further explore the rest of the non-categorical features.
 
 # The new classifier performance is much better than the previous one to the point that it can be deployed.
 
@@ -508,7 +603,7 @@ print_scores(y_pred, y_test)
 
 # ## 4.1 Saving the model
 
-# In[35]:
+# In[ ]:
 
 
 # load the input file
@@ -529,7 +624,7 @@ df_verify = encode_features(df_verify, features_categorical, le)
 df_verify.head()
 
 
-# In[36]:
+# In[ ]:
 
 
 y_infered = model.predict(df_verify.values)
@@ -543,7 +638,7 @@ print('{0:.0%} of the Verification dataset is detected as Joe\'s access.'.format
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[37]:
+# In[ ]:
 
 
 # convert Notebook to Python for better version control
