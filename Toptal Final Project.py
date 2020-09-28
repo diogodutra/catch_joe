@@ -17,7 +17,7 @@
 # - [ ] Comment Notebook
 #     - [ ] Comment unbalanced data and F1-score
 
-# In[1]:
+# In[ ]:
 
 
 import os
@@ -43,7 +43,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-# In[2]:
+# In[ ]:
 
 
 from sklearn.neural_network import MLPClassifier
@@ -59,7 +59,7 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.model_selection import GridSearchCV
 
 
-# In[3]:
+# In[ ]:
 
 
 from sklearn.preprocessing import MinMaxScaler
@@ -95,7 +95,7 @@ from sklearn.preprocessing import PowerTransformer
 
 # # 1 Load dataset
 
-# In[4]:
+# In[ ]:
 
 
 file = 'data/dataset.json'
@@ -109,7 +109,7 @@ df['joe'] = df['user_id'] == user_id_joe
 df.head()
 
 
-# In[5]:
+# In[ ]:
 
 
 # split dataset into train and test
@@ -129,7 +129,7 @@ df.shape
 
 # The first feature to be explored is `gender`. Let's explore the hypothesis that Joe never changed their gender.
 
-# In[6]:
+# In[ ]:
 
 
 # sns.catplot(x='joe', hue='gender', kind='count', data=df)
@@ -139,7 +139,7 @@ df.shape
 
 # ## 2.2 Location
 
-# In[7]:
+# In[ ]:
 
 
 # locations = list(set(df['location']))
@@ -148,13 +148,13 @@ df.shape
 
 # Let's now explore `location`. Unless Joe works in a cruising ship, probably he has limited variation of location around the globe so let's explore this hypothesis.
 
-# In[8]:
+# In[ ]:
 
 
 # sns.catplot(x='joe', hue='location', kind='count', data=df)
 
 
-# In[9]:
+# In[ ]:
 
 
 # Counter(df[df['joe']]['location'])
@@ -166,13 +166,13 @@ df.shape
 
 # Let's now explore `locale`. It is rare to find an active polyglot so let's explore this hypothesis.
 
-# In[10]:
+# In[ ]:
 
 
 # sns.catplot(x='joe', hue='locale', kind='count', data=df)
 
 
-# In[11]:
+# In[ ]:
 
 
 # Counter(df[df['joe']]['locale'])
@@ -184,7 +184,7 @@ df.shape
 
 # If Joe is not a geek than he is probably using only one or two different `os`.
 
-# In[12]:
+# In[ ]:
 
 
 # sns.catplot(x='joe', hue='os', kind='count', data=df)
@@ -196,7 +196,7 @@ df.shape
 
 # For the same reason explained before for the OS, Joe is probably using only a couple of `browsers`.
 
-# In[13]:
+# In[ ]:
 
 
 # sns.catplot(x='joe', hue='browser', kind='count', data=df)
@@ -208,7 +208,7 @@ df.shape
 
 # Let's now verify the hypothesis that Joe accesses internet only in some specific hours of the day. Mind that there is a conversion from GMT to local timezone.
 
-# In[14]:
+# In[ ]:
 
 
 location_to_tzinfo = {
@@ -218,7 +218,7 @@ location_to_tzinfo = {
 }
 
 
-# In[15]:
+# In[ ]:
 
 
 def utc_to_tz(datetime_object, location='GMT'):
@@ -239,6 +239,7 @@ def extract_hour_local(df):
 
 def extract_hour(df):
     return [int(time.split(':')[0]) for time in df['time']]
+#     return extract_hour_local(df)
 
 
 
@@ -254,7 +255,7 @@ _ = plt.ylabel('density of occurrencies')
 
 # Joe accesses internet only during lunch or dinner. Therefore, this is yet another relevant information to be used by our classifier.
 
-# In[16]:
+# In[ ]:
 
 
 # def is_inside_interval(number, interval):
@@ -273,7 +274,7 @@ _ = plt.ylabel('density of occurrencies')
 
 # Following the rationale from the previous subsection, let's verify the hypothesis that Joe accesses internet only in some specific days of the week.
 
-# In[17]:
+# In[ ]:
 
 
 # df['weekday'] = [date.day_name() for date in df['date']]
@@ -281,7 +282,7 @@ _ = plt.ylabel('density of occurrencies')
 # sns.catplot(x='joe', hue='weekday', kind='count', data=df)
 
 
-# In[18]:
+# In[ ]:
 
 
 # Counter(df[df['joe']]['weekday'])
@@ -293,7 +294,7 @@ _ = plt.ylabel('density of occurrencies')
 
 # Let's verify if Joe has different frequency of accesses along the days of the month.
 
-# In[19]:
+# In[ ]:
 
 
 # df['monthday'] = [date.day for date in df['date']]
@@ -307,7 +308,7 @@ _ = plt.ylabel('density of occurrencies')
 
 # Now let's check if there is any useful pattern along the months of the year.
 
-# In[20]:
+# In[ ]:
 
 
 # df['month'] = [date.month for date in df['date']]
@@ -319,7 +320,7 @@ _ = plt.ylabel('density of occurrencies')
 
 # ## 2.10 Duration
 
-# In[21]:
+# In[ ]:
 
 
 def extract_duration(df):
@@ -328,31 +329,21 @@ def extract_duration(df):
 
 df['duration'] = extract_duration(df)
 
-
-# Plotting the duration would be a bit harder to analyse. Intead, let's compare the duration statistics of the population against Joe's.
-
-# In[22]:
-
-
-# df['duration'].describe()
-
-
-# In[23]:
-
-
-# df[df['joe']]['duration'].describe()
+sns.distplot(df           ['duration'])
+sns.distplot(df[df['joe']]['duration'])
+plt.legend(['all', 'Joe'])
 
 
 # Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it is slightly off the population statistics so it might have some useful correlation with other features.
 
-# In[24]:
+# In[ ]:
 
 
 sites_joe = {site.get('site') for sites in df[df['joe']]['sites'] for site in sites}
 print(len(sites_joe), 'sites accessed by Joe.')
 
 
-# In[25]:
+# In[ ]:
 
 
 def intersection_ratio(set_this, set_reference):
@@ -368,14 +359,14 @@ df['sites_ratio'] = extract_sites_ratio(df)
 df[~df['joe']]['sites_ratio'].describe()
 
 
-# In[26]:
+# In[ ]:
 
 
 df_later['sites_ratio'] = extract_sites_ratio(df_later)
 df_later[df_later['joe']]['sites_ratio'].describe()
 
 
-# In[27]:
+# In[ ]:
 
 
 def extract_site_old(df):
@@ -389,7 +380,7 @@ def extract_site_old(df):
 # sns.catplot(x='joe', hue='site_old', kind='count', data=df_later)
 
 
-# In[28]:
+# In[ ]:
 
 
 def extract_lengths(df, sites_joe_list):
@@ -416,28 +407,28 @@ df_sites_joe_length = df_sites_joe_length.mean().sort_values(ascending=False)
 df_sites_joe_length
 
 
-# In[29]:
+# In[ ]:
 
 
 df_sites_all_length = extract_lengths(df, sites_joe_list)
 df_sites_all_length.mean().sort_values(ascending=False)
 
 
-# In[30]:
+# In[ ]:
 
 
 top_sites = 50
 joe_top_sites = list(df_sites_joe_length[:top_sites].index)
 
 
-# In[31]:
+# In[ ]:
 
 
 df_lengths = extract_lengths(df[df['joe']], joe_top_sites)
 df_lengths.head()
 
 
-# In[32]:
+# In[ ]:
 
 
 class NoScaler(StandardScaler):
@@ -452,7 +443,7 @@ class NoScaler(StandardScaler):
         return self.transform(x)
 
 
-# In[33]:
+# In[ ]:
 
 
 scaler = NoScaler()
@@ -466,12 +457,13 @@ scaled = scaler.fit_transform(df_lengths)
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe. However, how many logs by chance match exactly at the same time all these features? 
 
-# In[34]:
+# In[ ]:
 
 
 # define list of features to be used by the classifier
 
-features = ['gender', 'os', 'browser', 'locale', 'duration', 'location', 'hour']
+features = ['gender', 'os', 'browser', 'locale', 'location', 'hour']
+features += ['duration']
 # features += ['site_old']
 # features += ['sites_ratio']
 # features += sites_joe_list
@@ -484,7 +476,7 @@ features_categorical += ['hour']
 # features_categorical += ['site_old']
 
 
-# In[35]:
+# In[ ]:
 
 
 # df_like_joe = df.copy()
@@ -510,7 +502,7 @@ features_categorical += ['hour']
 # 
 # But how many of the left logs are our Joe indeed?
 
-# In[36]:
+# In[ ]:
 
 
 # count = Counter(df_like_joe['joe'])
@@ -522,7 +514,7 @@ features_categorical += ['hour']
 # print('False and True accesses ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
-# In[37]:
+# In[ ]:
 
 
 # user_id_like_joe = set(df_like_joe['user_id'])
@@ -537,7 +529,7 @@ features_categorical += ['hour']
 # 
 # Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
 
-# In[38]:
+# In[ ]:
 
 
 def categorize(df, features):
@@ -561,7 +553,7 @@ def encode_joe(is_joe_bool_list, encode_dict={True: user_id_joe, False: 1}):
     return [encode_dict[is_joe] for is_joe in is_joe_bool_list]
 
 
-# In[39]:
+# In[ ]:
 
 
 def transform_features(df, features, features_categorical):
@@ -591,7 +583,7 @@ def transform_features(df, features, features_categorical):
     return df[features]
 
 
-# In[40]:
+# In[ ]:
 
 
 df_train = df.copy()
@@ -605,7 +597,7 @@ X_train = df_train[features].values
 
 # Before creating our predictive model, let's calculate the Naïve performance. We know that the majority of the data is not from Joe so the Naïve classifier always assume that the result is 1 (not Joe).
 
-# In[41]:
+# In[ ]:
 
 
 def print_scores(y_pred, y_test):
@@ -622,7 +614,7 @@ print_scores(y_pred, y_train)
 
 # As expected, the accuracy score is quite high because most of the data is not Joe (imbalanced). Moreover, precision and recall scores are obviously nulls because the Naïve blindly guessed it always as not Joe.
 
-# In[42]:
+# In[ ]:
 
 
 # train model
@@ -633,7 +625,7 @@ y_pred = model.predict(X_train)
 print_scores(y_pred, y_train)
 
 
-# In[43]:
+# In[ ]:
 
 
 # prepare test dataset
@@ -643,7 +635,7 @@ df_test = transform_features(df_later, features, features_categorical)
 X_test = df_test[features].values
 
 
-# In[44]:
+# In[ ]:
 
 
 print('\nPerformance on test dataset:')
@@ -657,7 +649,7 @@ print_scores(y_pred, y_test)
 # 
 # In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
 
-# In[45]:
+# In[ ]:
 
 
 # dtreeviz(model, X_train, y_train,
@@ -666,7 +658,7 @@ print_scores(y_pred, y_test)
 #                 class_names=['Joe', 'not Joe'])
 
 
-# In[46]:
+# In[ ]:
 
 
 le['locale'].inverse_transform([18])
@@ -685,7 +677,7 @@ le['locale'].inverse_transform([18])
 
 # Let's try the performance of other more sophisticted models.
 
-# In[47]:
+# In[ ]:
 
 
 # score_function = accuracy_score
@@ -738,7 +730,7 @@ y_pred = best_model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# In[48]:
+# In[ ]:
 
 
 # parameters = {
@@ -768,7 +760,7 @@ print_scores(y_pred, y_test)
 
 # ## 4.1 Running the model on verify dataset
 
-# In[49]:
+# In[ ]:
 
 
 # load the input file
@@ -783,7 +775,7 @@ percentage = count[0] / (count[1] + count[0])
 print('{0:.2%} of the Verification dataset is detected as Joe\'s access.'.format(percentage))
 
 
-# In[50]:
+# In[ ]:
 
 
 print('{0:.2%} of the Train dataset is detected as Joe\'s access.'.format(sum(np.array(y_train) == user_id_joe) / len(y_train)))
@@ -795,7 +787,7 @@ print('{0:.2%} of the Test dataset is detected as Joe\'s access.'.format(sum(np.
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[51]:
+# In[ ]:
 
 
 # convert Notebook to Python for better version control
