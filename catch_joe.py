@@ -165,7 +165,7 @@ def print_scores(y_pred, y_true):
 
 def main(
     file_json = './data/verify.json',
-    file_pickle = 'catchjoe.pickle',
+    file_pickle = './model/catchjoe.pickle',
     file_output = 'catch_joe_output.txt'
     ):
 

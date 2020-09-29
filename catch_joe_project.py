@@ -48,8 +48,8 @@
 import sys
 
 
-path_to_module = './code/diogo-dutra'
-sys.path.insert(0, path_to_module)
+# path_to_module = './code/diogo-dutra'
+# sys.path.insert(0, path_to_module)
 
 import catch_joe
 from catch_joe import         extract_duration, extract_hour_local, extract_lengths, extract_sites_ratio,         categorize, encode_features, encode_joe, transform_features, print_scores
@@ -105,7 +105,7 @@ from sklearn.model_selection import GridSearchCV
 # In[4]:
 
 
-file = 'data/dataset.json'
+file = '../../data/dataset.json'
 
 df = pd.read_json(file)
 
@@ -568,7 +568,7 @@ catch_joe_dict = {
     'features_categorical': features_categorical,
 }
 
-with open('catchjoe.pickle', 'wb') as f:
+with open('./model/catchjoe.pickle', 'wb') as f:
     pickle.dump(catch_joe_dict, f)
 
 # this is how we load a pickle file (no need to run it)
@@ -584,11 +584,11 @@ with open('catchjoe.pickle', 'wb') as f:
 
 
 # below is how to run the script through terminal command in here
-# !python ./code/diogo-dutra/catch_joe.py
+# !python catch_joe.py
 
 
 # alternatively, let's run it from the Jupyter Notebook
-y_pred = catch_joe.main(file_json = './data/verify.json')
+y_pred = catch_joe.main(file_json = '../../data/verify.json')
 
 count = Counter(y_pred)
 print(count)
@@ -601,9 +601,9 @@ print('{0:.2%} of the predictions are detected as Joe\'s access.'.format(percent
 
 # The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
 
-# In[38]:
+# In[ ]:
 
 
 # convert Notebook to Python for better version control
-get_ipython().system(' jupyter nbconvert --to script "Toptal Final Project.ipynb" --output-dir="./code/diogo-dutra"')
+get_ipython().system(' jupyter nbconvert --to script "catch_joe_project.ipynb"')
 
