@@ -1,4 +1,4 @@
-![Hello 👋🏻](https://cdn.pixabay.com/photo/2017/06/04/16/32/hacker-2371490__340.jpg)
+![](https://cdn.pixabay.com/photo/2017/06/04/16/32/hacker-2371490__340.jpg)
 
 <p>&nbsp;</p>
 
@@ -34,5 +34,5 @@ python catch_joe.py -h
 # 📬 Get in touch
 
 Feel free to contact me at anytime should you need further information about this project or for any other Machine Learning and Data Scientist:
-- &#128100; Personal Web: diogodutra.github.io
-- ![](https://i.stack.imgur.com/gVE0j.png) LinkedIn: linkedin.com/in/diogodutra
+- &#128100; Personal Web: [diogodutra.github.io](https://diogodutra.github.io)
+- ![](https://i.stack.imgur.com/gVE0j.png) LinkedIn: [linkedin.com/in/diogodutra]()
