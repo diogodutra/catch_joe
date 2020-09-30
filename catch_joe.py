@@ -1,3 +1,14 @@
+
+"""Catch Joe library.
+
+This module compiles all the functions used during the Catch Joe project,
+including data exploration (plots), data analysis, feature extraction,
+predictive model training, predictive model evaluation, persistent storage
+of the predictive model parameters and the pipeline to run a standalone
+classification of which accesses are Joe's (0=Joe/1=not-Joe).
+"""
+
+
 import argparse
 
 from datetime import datetime
