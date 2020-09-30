@@ -1,3 +1,5 @@
+import argparse
+
 from datetime import datetime
 from dateutil import tz
 from datetime import datetime, timezone
@@ -332,7 +334,7 @@ def print_scores(y_pred, y_true):
 
 
 def main(
-    file_json = './data/verify.json',
+    file_json = 'verify.json',
     file_pickle = './model/catchjoe.pickle',
     file_output = 'catch_joe_output.txt'
     ):
@@ -345,31 +347,45 @@ def main(
         file_output (str): path and filename to TXT output file containing the predictions (0=Joe/1=not-Joe)
     """
 
-        # load dataset
-        with open(file_pickle, 'rb') as f:
-            catch_joe_dict = pickle.load(f)
-    
-        df = pd.read_json(file_json)
+    # load dataset
+    with open(file_pickle, 'rb') as f:
+        catch_joe_dict = pickle.load(f)
 
-        # extract features
-        df = transform_features(
-            df,
-            catch_joe_dict['features'],
-            catch_joe_dict['features_categorical'],
-            catch_joe_dict['joe_top_sites'],
-            catch_joe_dict['encoder'],
-        )
+    df = pd.read_json(file_json)
 
-        # predict Joe (0) or not-Joe (1)
-        y_pred = catch_joe_dict['model'].predict(df.values)
+    # extract features
+    df = transform_features(
+        df,
+        catch_joe_dict['features'],
+        catch_joe_dict['features_categorical'],
+        catch_joe_dict['joe_top_sites'],
+        catch_joe_dict['encoder'],
+    )
 
-        # export predictions to txt
-        with open(file_output, 'w') as f:
-            for y_i in y_pred:
-                f.write(str(y_i)+'\n')
+    # predict Joe (0) or not-Joe (1)
+    y_pred = catch_joe_dict['model'].predict(df.values)
 
-        return y_pred
+    # export predictions to txt
+    with open(file_output, 'w') as f:
+        for y_i in y_pred:
+            f.write(str(y_i)+'\n')
+
+    return y_pred
 
 
 if __name__ == '__main__':
-    main()
+
+    # parse script parameters
+    parser = argparse.ArgumentParser(
+        description="Predicts if Joe (user_id==0) accessed the internet.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-j", "--file_json", default="verify.json", help="path and filename to JSON input dataset containing user_id, browser, gender, date, time and sites")
+    parser.add_argument("-o", "--file_output", default="catch_joe_output.txt", help="path and filename to TXT output that will contain the prediction labels (0=Joe/1=not-Joe)")
+    parser.add_argument("-p", "--file_pickle", default="./model/catch_joe.pickle", help="path and filename to PICKLE containing the parameters for the predictive model")
+    args = parser.parse_args()
+    
+    # Create a dictionary of the shell arguments
+    kwargs = vars(args)
+    
+    # run ML pipeline as main script
+    main(**kwargs)
