@@ -343,10 +343,9 @@ def print_scores(y_pred, y_true):
     print('{0:.2%}'.format(precision_score(y_pred, y_true, pos_label=user_id_joe)), 'of the detections are truly from Joe.')
 
 
-
 def main(
     file_json = 'verify.json',
-    file_pickle = './model/catchjoe.pickle',
+    file_pickle = './model/catch_joe.pickle',
     file_output = 'catch_joe_output.txt'
     ):
     """

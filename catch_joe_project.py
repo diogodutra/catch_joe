@@ -2,21 +2,27 @@
 # coding: utf-8
 
 # # TODO:
-# - [x] Split dataset in chronological order
-# - [ ] Improve classifier performance
+# - [ ] Create classifier
 #     - [x] Add top sites as feature
+#     - [x] Split dataset in chronological order
 #     - [ ] Replace LabelEncode by OneHotEncode
 #     - [x] Scale numeric features
 #     - [x] Change metric
 #     - [x] Add GridSearchCV
 #     - [x] Correct time by local Timezone
 #     - [ ] 2-steps classifiers (categorical, numerical)
-# - [ ] Handle unseen labels
-# - [ ] Create standalone script
-# - [ ] Add readme
-# - [ ] Comment Notebook
-#     - [x] Unbalanced data and choice for F1-score
-#     - [ ] Importance of retrain when confirmed a new unusual activity (ie: new location)
+#     - [ ] Handle unseen labels
+# - [x] Create standalone script
+#     - [x] Module: add parser
+# - [ ] Comment Project
+#     - [x] Notebook: unbalanced data and choice for F1-score
+#     - [ ] Notebook: add hyperlink on Summary
+#     - [ ] Notebook: importance of retraining when confirmed a new unusual activity (ie: new location)
+#     - [ ] Notebook: review all comments
+#     - [ ] Notebook: remove TODO list
+#     - [ ] Notebook: clean code
+#     - [ ] Readme: create
+#     - [x] Module: add DocString
 
 # The present Jupyter Notebook explains the process of creating a predictive model to classify an user access as **Joe** or **not-Joe** using this [dataset](https://drive.google.com/file/d/1nATkzOZUe6w5IWcFNE3AakzBl-6P-5Hw/view?usp=sharing).
 # 
@@ -45,12 +51,6 @@
 # In[1]:
 
 
-import sys
-
-
-# path_to_module = './code/diogo-dutra'
-# sys.path.insert(0, path_to_module)
-
 import catch_joe
 from catch_joe import         extract_duration, extract_hour_local, extract_lengths, extract_sites_ratio,         categorize, encode_features, encode_joe, transform_features, print_scores
 
@@ -62,13 +62,8 @@ from catch_joe import         extract_duration, extract_hour_local, extract_leng
 # from dtreeviz.trees import dtreeviz
 # os.environ["PATH"] += os.pathsep + 'C:/Users/Diogo/anaconda3/Library/bin/graphviz'
 
-from collections import Counter, defaultdict
-from datetime import datetime
-from dateutil import tz
-from datetime import datetime, timezone
-
+from collections import Counter
 import pickle
-
 import pandas as pd
 import numpy as np
 
@@ -78,7 +73,6 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier, RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, make_scorer
-from sklearn import tree
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -97,15 +91,13 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
-from sklearn.model_selection import GridSearchCV
-
 
 # # 1 Load dataset
 
 # In[4]:
 
 
-file = '../../data/dataset.json'
+file = './data/dataset.json'
 
 df = pd.read_json(file)
 
@@ -433,19 +425,6 @@ print_scores(y_pred, y_train)
 # In[30]:
 
 
-features_triage = ['gender', 'os', 'browser', 'locale', 'hour']
-
-model_triage = DecisionTreeClassifier(max_depth=3).fit(df_train[features_triage], [y for y in y_train])
-
-
-print('Performance on train dataset:')
-y_pred = model_triage.predict(df_train[features_triage])
-print_scores(y_pred, y_train)
-
-
-# In[31]:
-
-
 # prepare test dataset
 df_test = df_later.copy()
 y_test = encode_joe(df_test['user_id'] == user_id_joe)
@@ -453,7 +432,7 @@ df_test = transform_features(df_later, features, features_categorical, sites_joe
 X_test = df_test[features].values
 
 
-# In[32]:
+# In[31]:
 
 
 print('Performance on test dataset:')
@@ -461,13 +440,13 @@ y_pred = model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The Decision Tree presents a slight increase of performance when compared to the Naïve. However, it is far from excellent since there are too many missed accesses from Joe.
+# The Decision Tree presents a slight increase of performance when compared to the Naïve guess. However, it is far from excellent since there are too wrong detections.
 
 # Before we move on to improve the performance, here is a question. How exactly does this Decision Tree above work in order to classify?
 # 
 # In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
 
-# In[33]:
+# In[32]:
 
 
 # dtreeviz(model, X_train, y_train,
@@ -477,7 +456,7 @@ print_scores(y_pred, y_test)
 #         )
 
 
-# In[34]:
+# In[33]:
 
 
 le['locale'].inverse_transform([18])
@@ -496,11 +475,11 @@ le['locale'].inverse_transform([18])
 
 # Let's try the performance of other more sophisticted models.
 
-# In[35]:
+# In[34]:
 
 
 # score_function = accuracy_score
-score_function = lambda x, y: f1_score(x, y, pos_label=0)
+score_function = lambda x, y: f1_score(x, y, pos_label=user_id_joe)
 
 models = [
     DecisionTreeClassifier(),
@@ -549,7 +528,7 @@ y_pred = best_model.predict(X_test)
 print_scores(y_pred, y_test)
 
 
-# The new classifier performance is much better than the previous one to the point that it can be deployed.
+# The best classifier performance trained above is much better than the previous Decision Tree to the point that it can be deployed.
 
 # # 4 Save
 
@@ -557,10 +536,10 @@ print_scores(y_pred, y_test)
 
 # Below we store the variables necesary to run a standalone script defined in the `catch_joe` module.
 
-# In[36]:
+# In[35]:
 
 
-catch_joe_dict = {
+catch_joe_model_parameters = {
     'model': model,
     'encoder': le,
     'joe_top_sites': joe_top_sites,
@@ -568,32 +547,28 @@ catch_joe_dict = {
     'features_categorical': features_categorical,
 }
 
-with open('./model/catchjoe.pickle', 'wb') as f:
-    pickle.dump(catch_joe_dict, f)
-
-# this is how we load a pickle file (no need to run it)
-# with open('catchjoe.pickle') as f:
-#     catch_joe_dict = pickle.load(f)
+with open('./model/catch_joe.pickle', 'wb') as f:
+    pickle.dump(catch_joe_model_parameters, f)
 
 
 # ## 4.2 Running the model on verify dataset
 
 # Let's use the model saved above through the standalone script.
 
-# In[37]:
+# In[36]:
 
 
 # below is how to run the script through terminal command in here
-# !python catch_joe.py
+# !python catch_joe.py -j ./data/verify.json
 
 
 # alternatively, let's run it from the Jupyter Notebook
-y_pred = catch_joe.main(file_json = '../../data/verify.json')
+y_pred = catch_joe.main(file_json = './data/verify.json')
 
 count = Counter(y_pred)
 print(count)
 percentage = count[0] / (count[1] + count[0])
-print('{0:.2%} of the predictions are detected as Joe\'s access.'.format(percentage))
+print('{0:.2%} of the predictions are detected as Joe\'s accesses.'.format(percentage))
 
 
 # 
