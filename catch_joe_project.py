@@ -1,30 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # TODO:
-# - [ ] Create classifier
-#     - [x] Add top sites as feature
-#     - [x] Split dataset in chronological order
-#     - [ ] Replace LabelEncode by OneHotEncode
-#     - [x] Scale numeric features
-#     - [x] Change metric
-#     - [x] Add GridSearchCV
-#     - [x] Correct time by local Timezone
-#     - [ ] 2-steps classifiers (categorical, numerical)
-#     - [ ] Handle unseen labels
-# - [x] Create standalone script
-#     - [x] Module: add parser
-# - [ ] Comment Project
-#     - [x] Notebook: unbalanced data and choice for F1-score
-#     - [ ] Notebook: importance of retraining when confirmed a new unusual activity (ie: new location)
-#     - [x] Notebook: review all comments
-#     - [ ] Notebook: remove TODO list
-#     - [ ] Notebook: clean code
-#     - [x] Notebook: briefly explain Random Forest
-#     - [x] Readme: create
-#     - [x] Module: add DocString
+# # Project Catch Joe
 
-# # Index
+# ## Index
 # 
 # 1. Introduction  
 #     1.1 Import modules  
@@ -628,14 +607,14 @@ print('{0:.2%} of the predictions are detected as Joe\'s accesses.'.format(perce
 
 # We do not have the correct answers (`user_id`) in the `verify.json` file. However, just for the sake of curiosity, we can observe from the results above that our predictive model predicts Joe's sessions as the minority of the times. Such figure is expected for a real dataset that is expected to contain hundreds of users.
 # 
-# There is a small drop in Joe's presence in the verify dataset compared to both the train and test. This might be an indication that the classifier is missing some of his sessions because of an unexpected change of Joe's behavior (problem explained in the subsection). If that is the case then it would demand a further training with the new data to fix it.
+# There is a small drop in Joe's presence in the verify dataset compared to both the train and test. This might be an indication that the classifier is missing some of his sessions because of an unexpected change of Joe's behavior (problem explained in the subsection). If that is the case then it would demand a further training with the new data to fix this.
 
 # 
 # ## 4.3 Export to Python code
 
 # The following code serves to convert the present Jupyter Notebook into Python code. This exported `.py` code is aimed to facilitate version control and tracking of "Python only" changes since it does not contain HTML nor JSON codes that rae typically present in the `.ipynb` files.
 
-# In[37]:
+# In[62]:
 
 
 # convert Notebook to Python for better version control
