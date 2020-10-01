@@ -16,37 +16,62 @@
 #     - [x] Module: add parser
 # - [ ] Comment Project
 #     - [x] Notebook: unbalanced data and choice for F1-score
-#     - [ ] Notebook: add hyperlink on Summary
 #     - [ ] Notebook: importance of retraining when confirmed a new unusual activity (ie: new location)
-#     - [ ] Notebook: review all comments
+#     - [x] Notebook: review all comments
 #     - [ ] Notebook: remove TODO list
 #     - [ ] Notebook: clean code
-#     - [ ] Readme: create
+#     - [ ] Notebook: briefly explain Random Forest
+#     - [x] Readme: create
 #     - [x] Module: add DocString
 
-# The present Jupyter Notebook explains the process of creating a predictive model to classify an user access as **Joe** or **not-Joe** using this [dataset](https://drive.google.com/file/d/1nATkzOZUe6w5IWcFNE3AakzBl-6P-5Hw/view?usp=sharing).
+# # Index
 # 
-# The sections are numbered as follows:
+# 1. Introduction  
+#     1.1 Import modules  
+#     1.2 Load dataset  
+#     
+#     
+# 2. Data Exploration  
+#     2.1 Location  
+#     2.2 Gender  
+#     2.3 Language  
+#     2.4 Operating System  
+#     2.5 Browser  
+#     2.6 Time of the day  
+#     2.7 Day of the week  
+#     2.8 Day of the month  
+#     2.9 Month of the year  
+#     2.10 Duration  
+#     2.11 Sites  
+#     
+#     
+# 3. Predictive Model  
+#     3.1 Naïve Analysis  
+#     3.2 Decision Tree  
+#     3.3 Random Forest
+#   
+#   
+# 4. Save  
+#     4.1 Storage model parameters  
+#     4.2 Run on Verify dataset  
+#     4.3 Export this Notebook to Python code
+
+# # &#x2615;  1 Introduction
+
+# ## 1.1 Context
+
+# The present Jupyter Notebook explains the process of creating a predictive model to identify an user access as **Joe** or **not-Joe** using this [dataset](https://drive.google.com/file/d/1nATkzOZUe6w5IWcFNE3AakzBl-6P-5Hw/view?usp=sharing).
 # 
-# 1. Load dataset
-# 1. Data Exploration
-#     - Location
-#     - Gender
-#     - Language
-#     - Operating System
-#     - Browser
-#     - Time of the day
-#     - Day of the week
-#     - Day of the month
-#     - Month of the year
-#     - Duration
-# 1. Predictive Model
-#     - Naïve Analysis
-#     - Decision Tree
-# 1. Save
-#     - Export the Model
-#     - Run the Verify dataset
-#     - Export this Notebook
+# The dataset contains data about user sessions that have been recorded over a period of time. The dataset consists of two parts: the training dataset where user ID’s are labeled, and the verification set without labels.
+# 
+# Each session is represented by a JSON object with the following fields:
+# - `user_id` is the unique identifier of the user.
+# - `browser`, `os`, `locale` contain info about the software on the user’s machine.
+# - `gender`, `location` give analytics data about the user.
+# - `date` and `time` is the moment when the session started (in GMT).
+# - `sites` is a list of up to 15 sites visited during the session. For each site, the url and the length of visit in seconds are given.
+
+# ## 1.1 Import modules
 
 # In[1]:
 
@@ -58,9 +83,9 @@ from catch_joe import         extract_duration, extract_hour_local, extract_leng
 # In[2]:
 
 
-# import os
-# from dtreeviz.trees import dtreeviz
-# os.environ["PATH"] += os.pathsep + 'C:/Users/Diogo/anaconda3/Library/bin/graphviz'
+import os
+from dtreeviz.trees import dtreeviz
+os.environ["PATH"] += os.pathsep + 'C:/Users/Diogo/anaconda3/Library/bin/graphviz'
 
 from collections import Counter
 import pickle
@@ -92,7 +117,11 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
 
-# # 1 Load dataset
+# ## 1.2 Load dataset
+
+# The dataframe below is what all the information available in the JSON file.
+# 
+# It contains all the information in a typical JSON to be classified, except that this one has an extra column with the label `user_id` for training purpose. We will use it to create another column with booleans to explicit if it is related to `user_id = 0 `, nicknamed as **Joe**.
 
 # In[4]:
 
@@ -109,6 +138,8 @@ print(df.shape)
 df.head()
 
 
+# Before everything, let's split the data now in order to guarantee that there is no _Data Leakage_ in the following phase during our data exploration and analysis. Mind that this is a time-series data, so we will split it in the chronological order (instead of random sampling). The later dataset will be used to test and score our predictive model.
+
 # In[5]:
 
 
@@ -123,7 +154,9 @@ df = df.drop(df_later.index) # train dataset
 df.shape
 
 
-# # 2 Data Exploration
+# # &#x1f4c8; 2 Data Exploration
+
+# Let's go through a series of plots throughout the dataset in order to extract insights and patterns that will be used by our predictive model later on.
 
 # ## 2.1 Gender
 
@@ -135,11 +168,11 @@ df.shape
 _ = sns.catplot(x='joe', hue='gender', kind='count', data=df)
 
 
-# It seems that Joe is a male, since there is no log on his name as female. This insight is useful to discard around 40% of the dataset.
+# It seems that Joe is consistently identified as a male, since there is no log on his name as female. This insight is useful to discard around 40% of the dataset.
 
 # ## 2.2 Location
 
-# Let's now explore `location`. Unless Joe works in a cruising ship, probably he has limited variation of location around the globe so let's explore this hypothesis.
+# Now, let's now explore `location`. Unless Joe lives in a cruising ship, he probably has little change of location around the globe.
 
 # In[7]:
 
@@ -153,7 +186,7 @@ _ = sns.catplot(x='joe', hue='location', kind='count', data=df)
 Counter(df[df['joe']]['location'])
 
 
-# Joe has access logs from Paris, Chicago and Toronto only. This is helpful to discard the other 18 locations.
+# Joe accessed from Paris, Chicago and Toronto only. This is helpful to discard the other 18 locations.
 
 # ## 2.3 Language
 
@@ -195,7 +228,7 @@ _ = sns.catplot(x='joe', hue='os', kind='count', data=df)
 _ = sns.catplot(x='joe', hue='browser', kind='count', data=df)
 
 
-# Again, Joe uses only Firefox and Chrome, ruling out Internet Explorer and Safari.
+# Joe always uses Firefox and Chrome, ruling out Internet Explorer and Safari.
 
 # ## 2.6 Time of the day
 
@@ -214,7 +247,7 @@ plt.title('Histogram of accesses per hour of the day')
 _ = plt.ylabel('density of occurrencies')
 
 
-# Joe accesses internet only during lunch or dinner. Therefore, this is yet another relevant information to be used by our classifier.
+# Joe accesses internet only during lunch or dinner. Therefore, hour of access is yet another relevant information to be used by our classifier.
 
 # ## 2.7 Day of the week
 
@@ -234,11 +267,11 @@ _ = sns.catplot(x='joe', hue='weekday', kind='count', data=df)
 Counter(df[df['joe']]['weekday'])
 
 
-# There is no particular day of the week that shows an unusual history of access from Joe, so let's drop this feature.
+# Unfortunately, there is no particular day of the week that shows an unusual occurency of accesses from Joe, so let's drop this feature.
 
 # ## 2.8 Day of the month
 
-# Let's verify if Joe has different frequency of accesses along the days of the month.
+# Let's verify if Joe has different frequency of access along the days of the month.
 
 # In[16]:
 
@@ -252,7 +285,7 @@ _ = sns.catplot(x='joe', hue='monthday', kind='count', data=df)
 
 # ## 2.9 Month of the year
 
-# Now let's check if there is any useful pattern along the months of the year.
+# Now, let's check if there is any useful pattern along the months of the year.
 
 # In[17]:
 
@@ -273,10 +306,16 @@ df['duration'] = extract_duration(df)
 
 sns.distplot(df           ['duration'])
 sns.distplot(df[df['joe']]['duration'])
+plt.xlabel('duration of each session')
+plt.ylabel('probability density')
 _ = plt.legend(['all', 'Joe'])
 
 
-# Joe's duration of access is fit within the statistical boundaries of the population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it is slightly off the population statistics so it might have some useful correlation with other features.
+# Joe's duration of access fits well within the statistical boundaries of the whole population, which means that there is nothing unusual. Nonetheless, let's keep this feature since it is slightly off the population statistics so it might be useful when correlated with other features (ie: he might access longer during dinner than lunch).
+
+# # 2.11 Sites
+
+# The list of sites accessed per session and its respective lengths do sound like a pretty relevant information. We all have our own favorite sites that we access most often by far from the others. If such data is the user's "digital footprint" then their "digital gait" could be used to identify them, hopefully including Joe.
 
 # In[19]:
 
@@ -291,6 +330,9 @@ print(len(sites_joe), 'sites accessed by Joe.')
 sites_joe_list = list(sites_joe)    
 df_sites_joe_length = extract_lengths(df[df['joe']], sites_joe_list)
 df_sites_joe_length = df_sites_joe_length.mean().sort_values(ascending=False)
+
+print("Most and least sites accessed by Joe:")
+print('\nADDRESS \t AVERAGE LENGTH OF SESSION')
 df_sites_joe_length
 
 
@@ -298,12 +340,15 @@ df_sites_joe_length
 
 
 df_sites_all_length = extract_lengths(df, sites_joe_list)
+
+print("Most and least sites accessed by the whole population:")
+print('\nADDRESS \t AVERAGE LENGTH OF SESSION')
 df_sites_all_length.mean().sort_values(ascending=False)
 
 
-# The most accessed sites by Joe have links and lengths different than the population. So, this information is useful as well.
+# The sites most accessed by Joe have links and lengths different than the population. So, this information is useful as well.
 # 
-# However, let's extract as features only the top acccessed sites in order to avoid overfitting and heavy computational cost.
+# However, let's extract as features for our predictive model only the top ones in order to avoid overfitting and heavy computational cost.
 
 # In[22]:
 
@@ -313,15 +358,15 @@ joe_all_sites = list(df_sites_joe_length[:top_sites].index)
 joe_top_sites = joe_all_sites[:top_sites]
 
 
-# # 3 Predictive Model
+# # &#128187; 3 Predictive Model
 
 # ## 3.1 Naïve Bayes Analysis
 
 # The previously mentioned features are good enough to safely tell whenever is not Joe.
 # 
-# What if they are good enough to usem them independently as filters to discard them all until we have only joe's access left?
+# What if they are good enough to be queried independentely as filters to discard parts of the data until we have only Joe left?
 # 
-# In orde to find this out, let's check how many logs match exactly the Joe's history for the categorical features. 
+# In orde to find this out, let's check how many logs match exactly the Joe's history from the categorical features. 
 
 # In[23]:
 
@@ -355,7 +400,7 @@ print('Like-Joe dataset contains', df_like_joe.shape[0], 'logs',
      "({0:.0%}).".format(df_like_joe.shape[0] / df.shape[0]))
 
 
-# Filtering out those logs that do not match Joe's history is enough to discard a large piece of the dataset.
+# Filtering the sessions that do not match Joe's history is enough to discard a large piece of the dataset.
 # 
 # But how many of the left logs are our Joe indeed?
 
@@ -365,10 +410,10 @@ print('Like-Joe dataset contains', df_like_joe.shape[0], 'logs',
 count = Counter(df_like_joe['joe'])
 print(count)
 
-is_joe = np.asarray(list(count.values()))
+is_joe = np.asarray([count[False], count[True]])
 is_joe = list(is_joe / is_joe.sum())
 
-print('False and True accesses ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
+print('False and True sessions ratio from Joe:', ', '.join('{0:.1%}'.format(i) for i in is_joe))
 
 
 # In[26]:
@@ -378,13 +423,9 @@ user_id_like_joe = set(df_like_joe['user_id'])
 print(len(user_id_like_joe), 'total of user_id with same logs than Joe:', *user_id_like_joe)
 
 
-# Despite the fact that the filter previously mentioned has efficiently removed most of the dataset, there are yet some logs from a few people with enough occurencies to be a majority over Joe. This is yet something to be tackled, since we don't want these people being taken as Joe.
+# Despite the fact that the filter above efficiently removed most of the dataset, there are yet some sessions from a few people with enough occurencies to be a majority over Joe. This is yet something to be tackled, since we don't want these people being taken as Joe.
 
-# ## 3.2 Decision Tree
-
-# Maybe, the cross combination of restrictions across different features is enough to find Joe out of the other few people above. For instance, Joe might be the only one who uses Firefox (`browser`) on Windows 10 (`os`).
-# 
-# Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
+# Before creating our predictive model in the next subsection, let's calculate the Naïve performance. We know that the majority of the data is not from Joe so the Naïve classifier always assume that the result is 1 (not Joe).
 
 # In[27]:
 
@@ -398,8 +439,6 @@ df_train = transform_features(df_train, features, features_categorical, joe_top_
 X_train = df_train[features].values
 
 
-# Before creating our predictive model, let's calculate the Naïve performance. We know that the majority of the data is not from Joe so the Naïve classifier always assume that the result is 1 (not Joe).
-
 # In[28]:
 
 
@@ -409,20 +448,67 @@ print('Performance of Naïve on train dataset:')
 print_scores(y_pred, y_train)
 
 
-# As expected, the accuracy score is quite high because most of the data is not Joe (imbalanced). Moreover, precision and recall scores are obviously nulls because the Naïve blindly guessed it always as not Joe. As a consequence, our chosen metric will be F1-score, so that both precision and recall scores are going to be balanced.
+# As expected, the accuracy score is quite high because the data is largely imbalanced with not-Joe sessions.
+# 
+# Moreover, precision and recall scores are obviously nulls because the Naïve blindly guesses as not Joe.
+# 
+# For these reasons, **our chosen metric will be the F1-score**, resulting in:
+# - 0% F1-score is our reference as benchmarked by our Naïve guess; and
+# - Both precision and recall scores are going to be equally considered.
+
+# ## 3.2 Decision Tree
+
+# Maybe, the correlation of every restriction is better enough to find Joe out of the other few people above. For instance, Joe might be the only one who uses Firefox (`browser`) on Windows 10 (`os`).
+# 
+# Let's create a simple Decision Tree, train it on the single-entries categorical features and check it's performance to detect Joe.
 
 # In[29]:
 
 
 # train model
-model = DecisionTreeClassifier(max_depth=3).fit(X_train, y_train)
+n_features_categorical = len(features_categorical)
+model = DecisionTreeClassifier(max_depth=3).fit(X_train[:, :n_features_categorical], y_train)
 
 print('Performance on train dataset:')
-y_pred = model.predict(X_train)
+y_pred = model.predict(X_train[:, :n_features_categorical])
 print_scores(y_pred, y_train)
 
 
+# The Decision Tree presents a slight increase of performance when compared to the Naïve guess. However, it is far from excellent since there are too wrong detections. Therefore, let's try other more sophisticated models aiming for a improvement in the performance (higher F1-score).
+
+# Before we move on to improve the performance, here is a question. How exactly does this Decision Tree above work in order to classify?
+# 
+# In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
+
 # In[30]:
+
+
+dtreeviz(model, X_train[:, :n_features_categorical], np.asarray(y_train),
+                class_names=['Joe', 'not Joe'],
+                feature_names=features_categorical,
+        )
+
+
+# In[31]:
+
+
+le['locale'].inverse_transform([18])
+
+
+# The graph above shows that the Decision Tree queries the features in the following order:
+# 1. If the language (`locale`) is less than 17.5 then is not Joe with 100% of certainty; else ...
+# 1. If the language (`locale`) is more than 18.5 then is is not Joe with 100% of certainty; else ...
+# 1. If the (encoded) location of access is less than 3.5 than it is Joe with 100% of certainty; else ...
+# 1. We run out of questions so it guesses it is not Joe with roughly 10% of error.
+# 
+# Mind that `locale = 18` is the Russian language as coded by the `LabelEncoder`. Therefore, the first 2 questions above are mainly telling us that if the language of access is not Russian than it is not 
+# Joe for sure.
+
+# ## 3.3 Random Forest
+
+# Let's prepare the test dataset following the same feature extraction pipeline as we did for the training dataset.
+
+# In[32]:
 
 
 # prepare test dataset
@@ -432,50 +518,9 @@ df_test = transform_features(df_later, features, features_categorical, sites_joe
 X_test = df_test[features].values
 
 
-# In[31]:
-
-
-print('Performance on test dataset:')
-y_pred = model.predict(X_test)
-print_scores(y_pred, y_test)
-
-
-# The Decision Tree presents a slight increase of performance when compared to the Naïve guess. However, it is far from excellent since there are too wrong detections.
-
-# Before we move on to improve the performance, here is a question. How exactly does this Decision Tree above work in order to classify?
-# 
-# In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
-
-# In[32]:
-
-
-# dtreeviz(model, X_train, y_train,
-#                 target_name="target",
-#                 feature_names=features,
-#                 class_names=['Joe', 'not Joe'],
-#         )
-
+# Now, let us instantiate and try some more sophisticted models candidates in order to select the one with best performance.
 
 # In[33]:
-
-
-le['locale'].inverse_transform([18])
-
-
-# The graph above shows that the Decision Tree queries the features in the following order:
-# 1. If the language (`locale`) is less than 17.5 then is not Joe with 100% of certainty; else ...
-# 1. If the language (`locale`) is more than 18.5 then is is not Joe with 100% of certainty; else ...
-# 1. If the duration of access is less than 3.5 than it is Joe with 100% of certainty; else ...
-# 1. We run out of questions so it guesses it is not Joe with roughly 10% of error.
-# 
-# Mind that `locale = 18` is the Russian language as coded by the `LabelEncoder`. Therefore, the first 2 questions above are mainly telling us that if the language of access is not Russian than it is not 
-# Joe for sure.
-# 
-# Another observtion is that the `duration` alone feature was not useful, as explained in the previous section. However, it became useful for the remaining cases that are exclusivelly Russian speakers.
-
-# Let's try the performance of other more sophisticted models.
-
-# In[34]:
 
 
 # score_function = accuracy_score
@@ -489,8 +534,11 @@ models = [
     GradientBoostingClassifier(),
     GaussianNB(),
     
-#     KNeighborsClassifier(n_neighbors=200),
+    # these below were not included because
+    # they take a long time and they
+    # ended up not being selected anyway
     
+#     KNeighborsClassifier(n_neighbors=200),    
 #     QuadraticDiscriminantAnalysis(),
 #     GaussianProcessClassifier(),
 #     GaussianProcessClassifier(1.0 * RBF(1.0)),
@@ -530,13 +578,13 @@ print_scores(y_pred, y_test)
 
 # The best classifier performance trained above is much better than the previous Decision Tree to the point that it can be deployed.
 
-# # 4 Save
+# # &#x1f4be; 4 Save
 
-# ## 4.1 Exporting the model
+# ## 4.1 Export the model parameters
 
-# Below we store the variables necesary to run a standalone script defined in the `catch_joe` module.
+# It is time to store the model parameters necesary to run a standalone script defined in the `catch_joe` module.
 
-# In[35]:
+# In[34]:
 
 
 catch_joe_model_parameters = {
@@ -551,11 +599,11 @@ with open('./model/catch_joe.pickle', 'wb') as f:
     pickle.dump(catch_joe_model_parameters, f)
 
 
-# ## 4.2 Running the model on verify dataset
+# ## 4.2 Run on Verify dataset
 
-# Let's use the model saved above through the standalone script.
+# Let's use the latest model saved above to run a standalone script.
 
-# In[36]:
+# In[35]:
 
 
 # below is how to run the script through terminal command in here
@@ -563,6 +611,7 @@ with open('./model/catch_joe.pickle', 'wb') as f:
 
 
 # alternatively, let's run it from the Jupyter Notebook
+# so we get y_pred to print some results below
 y_pred = catch_joe.main(file_json = './data/verify.json')
 
 count = Counter(y_pred)
@@ -571,12 +620,14 @@ percentage = count[0] / (count[1] + count[0])
 print('{0:.2%} of the predictions are detected as Joe\'s accesses.'.format(percentage))
 
 
+# We do not have the correct answers (`user_id`) in the `verify.json` file. However, just for the sake of curiosity, we can observe from the results above that our predictive model predicts Joe's sessions as the minority of the times. Such figure is expected for a real dataset that is expected to contain hundreds of users.
+
 # 
-# ## 4.3 Exporting this Notebook
+# ## 4.3 Export to Python code
 
-# The following code is to convert the present Jupyter Notebook into Python script. The script is the one under version control since we do not want to keep track of JSON codes internal to the `.ipynb` files.
+# The following code serves to convert the present Jupyter Notebook into Python code. This exported `.py` code is aimed to facilitate version control and tracking of "Python only" changes since it does not contain HTML nor JSON codes that rae typically present in the `.ipynb` files.
 
-# In[ ]:
+# In[36]:
 
 
 # convert Notebook to Python for better version control
