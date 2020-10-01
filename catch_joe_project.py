@@ -581,6 +581,8 @@ print_scores(y_pred, y_test)
 # The best classifier performance trained above is much better than the previous Decision Tree to the point that it can be deployed.
 # 
 # The best classifier is the Random Forest, which is an ensemble learning method that operate by constructing a multitude of decision trees at training time and outputting the class that is the mode of the classes (classification) of the individual trees. It is less prone to overfitting while often presenting a better accuracy.
+# 
+# It is utterly important to retrain the predictive model whenever Joe changes his session pattern. Otherwise the performance will dive. For instance, if Joe starts a new session with another language other than Russian, this will cause the classifier to miss him since it is an unprecedented behavior that was obviously not considered during the training above. This is a common limitation across all predictive models, since all future inferences are assumed to be a good extrapolation of past learned patterns.
 
 # # &#x1f4be; 4 Save
 
@@ -625,6 +627,8 @@ print('{0:.2%} of the predictions are detected as Joe\'s accesses.'.format(perce
 
 
 # We do not have the correct answers (`user_id`) in the `verify.json` file. However, just for the sake of curiosity, we can observe from the results above that our predictive model predicts Joe's sessions as the minority of the times. Such figure is expected for a real dataset that is expected to contain hundreds of users.
+# 
+# There is a small drop in Joe's presence in the verify dataset compared to both the train and test. This might be an indication that the classifier is missing some of his sessions because of an unexpected change of Joe's behavior (problem explained in the subsection). If that is the case then it would demand a further training with the new data to fix it.
 
 # 
 # ## 4.3 Export to Python code
