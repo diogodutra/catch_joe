@@ -20,7 +20,7 @@
 #     - [x] Notebook: review all comments
 #     - [ ] Notebook: remove TODO list
 #     - [ ] Notebook: clean code
-#     - [ ] Notebook: briefly explain Random Forest
+#     - [x] Notebook: briefly explain Random Forest
 #     - [x] Readme: create
 #     - [x] Module: add DocString
 
@@ -506,7 +506,9 @@ le['locale'].inverse_transform([18])
 
 # ## 3.3 Random Forest
 
-# Let's prepare the test dataset following the same feature extraction pipeline as we did for the training dataset.
+# Finally, now we create our final predictive model.
+
+# Let's start by preparing the test dataset following the same feature extraction pipeline as we did for the training dataset.
 
 # In[32]:
 
@@ -577,6 +579,8 @@ print_scores(y_pred, y_test)
 
 
 # The best classifier performance trained above is much better than the previous Decision Tree to the point that it can be deployed.
+# 
+# The best classifier is the Random Forest, which is an ensemble learning method that operate by constructing a multitude of decision trees at training time and outputting the class that is the mode of the classes (classification) of the individual trees. It is less prone to overfitting while often presenting a better accuracy.
 
 # # &#x1f4be; 4 Save
 
@@ -627,7 +631,7 @@ print('{0:.2%} of the predictions are detected as Joe\'s accesses.'.format(perce
 
 # The following code serves to convert the present Jupyter Notebook into Python code. This exported `.py` code is aimed to facilitate version control and tracking of "Python only" changes since it does not contain HTML nor JSON codes that rae typically present in the `.ipynb` files.
 
-# In[36]:
+# In[37]:
 
 
 # convert Notebook to Python for better version control
