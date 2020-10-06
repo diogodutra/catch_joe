@@ -47,6 +47,19 @@ location_to_tzinfo = {
 }
 
 
+def extract_weekday(df):
+    """
+    Extracts from dataset the weekday of each session.
+
+    Args:
+        df (pandas.DataFrame): dataset with history of accesses (ex: pandas.read_json('verify.json'))
+
+    Returns:
+        weekdays (list of str): Names of the days of the week of every session
+    """
+    return [date.day_name() for date in df['date']]
+
+
 def extract_duration(df):
     """
     Extracts from dataset the duration of each session.
@@ -198,9 +211,35 @@ def extract_sites_ratio(df, sites_joe_list):
                        for sites in df['sites']]
 
 
-def extract_site_old(df, sites_joe_list):
+def extract_sites(df):
     """
-    Checks on dataset which rows contains any of the sites accessed by Joe
+    Extracts list of all sites accessed
+
+    Args:
+        df (pandas.DataFrame): dataset with history of accesses (ex: pandas.read_json('verify.json'))
+
+    Returns:
+        sites (list of str): adresses of all sites accessed
+    """
+    return list({site.get('site') for sites in df['sites'] for site in sites})
+
+
+def extract_sites_joe(df):
+    """
+    Extracts list of all sites accessed by Joe
+
+    Args:
+        df (pandas.DataFrame): dataset with history of accesses (ex: pandas.read_json('verify.json'))
+
+    Returns:
+        sites (list of str): adresses of all sites accessed by Joe
+    """
+    return list({site.get('site') for sites in df[df['joe']]['sites'] for site in sites})
+
+
+def extract_site_history(df, sites_joe_list):
+    """
+    Checks on dataset which rows contains at least one of the sites previously accessed by Joe
 
     Args:
         df (pandas.DataFrame): dataset with history of accesses (ex: pandas.read_json('verify.json'))
@@ -209,8 +248,7 @@ def extract_site_old(df, sites_joe_list):
     Returns:
         checks (list of bool): conditions if any of the sites in every row of dataset is contained in 'sites_joe_list'
     """
-    return [not {site.get('site') for site in sites}.isdisjoint(sites_joe_list)
-                       for sites in df['sites']]
+    return list(map(lambda x: any(site.get('site') in sites_joe_list for site in x), df['sites']))
 
 
 def extract_lengths(df, sites_joe_list):
@@ -239,6 +277,46 @@ def extract_lengths(df, sites_joe_list):
     return df_lengths
 
 
+
+def extract_hosts_joe(df):
+    """
+    Extracts list of all site hosts accessed by Joe
+
+    Args:
+        df (pandas.DataFrame): dataset with history of accesses (ex: pandas.read_json('verify.json'))
+
+    Returns:
+        sites (list of str): adresses of all site hosts accessed by Joe
+    """
+    return list({site.split('.')[-1] for site in extract_sites_joe(df[df['joe']])})
+
+
+def extract_hosts(df, joe_all_hosts):
+    """
+    Extracts from dataset the session length of each site as a separate extended dataset if it is contained in the Joe's list
+
+    Args:
+        df (pandas.DataFrame): dataset with history of accesses (ex: pandas.read_json('verify.json'))
+        sites_joe_list (list of str): most accessed sites by Joe
+
+    Returns:
+        df (pandas.DataFrame): extended dataset with lengths of each session
+    """
+    hosts_joe_length = np.zeros((df.shape[0], len(joe_all_hosts)))
+    for i_row, sites in enumerate(df['sites']):
+        for site in sites:
+            try:
+                i_site = joe_all_hosts.index(site.get('site').split('.')[-1])
+                hosts_joe_length[i_row, i_site] = site.get('length')
+            except:
+                # site not found in Joe's history
+                pass
+           
+    df_lengths = pd.DataFrame(hosts_joe_length, columns=joe_all_hosts, index=df.index)
+    
+    return df_lengths
+
+
 def categorize(df, features):
     """
     Encodes and converts values in 'features' columns into categorical type
@@ -250,7 +328,7 @@ def categorize(df, features):
     Returns:
         df (pandas.DataFrame): dataset with categorical features encoded
         le (dict of LabelEncoder): encoder for each categorical feature
-    """    
+    """
     df[features] = df[features].astype('category')
 
     le = {feat: LabelEncoder().fit(df[feat]) for feat in features}
@@ -290,7 +368,7 @@ def encode_joe(is_joe_bool_list, encode_dict={True: user_id_joe, False: 1}):
     return [encode_dict[is_joe] for is_joe in is_joe_bool_list]
 
 
-def transform_features(df, features, features_categorical, joe_top_sites, le):
+def transform_features(df, features, features_categorical, joe_top_sites, joe_all_sites, le, joe_all_hosts=None):
     """
     Adds n dependant features, removes some unused ones and convert others to categorical.
 
@@ -298,8 +376,11 @@ def transform_features(df, features, features_categorical, joe_top_sites, le):
         df (pandas.DataFrame): dataset with categorical features encoded
         features (list of str): subset of columns to be included in the output dataframe
         features_categorical (list of str): subset of columns to be encoded and converted to categorical type
+        joe_top_sites (list of str): top sites accessed by Joe, to be used to extract lengths as features
+        joe_all_sites (list of str): all sites accessed by Joe
         le (dict of LabelEncoder): encoder for each categorical feature
-
+        joe_all_hosts (list of str, optional): list of site hosts accessed by Joe, used as features
+        
         is_joe_bool_list (list of Bool): conditions if row is from user_id = 0 (Joe)
         encode_dict (dict, Optional): conversion from boolean to integer
 
@@ -309,10 +390,11 @@ def transform_features(df, features, features_categorical, joe_top_sites, le):
 
     # add some features
     new_features = {
+        'weekday': extract_weekday,
         'duration': extract_duration,
         'hour': extract_hour,
-        'sites_ratio': extract_sites_ratio,
-        'site_old': extract_site_old,
+        'sites_ratio':  lambda x: extract_sites_ratio(x, joe_all_sites),
+        'site_history': lambda x: extract_site_history(x, joe_all_sites),
     }
     
     for feat_name, feat_func in new_features.items():
@@ -320,27 +402,30 @@ def transform_features(df, features, features_categorical, joe_top_sites, le):
 
     # convert features into category type
     df[features_categorical] = df[features_categorical].astype('category')
-    df = encode_features(df, features_categorical, le)    
+    df = encode_features(df, features_categorical, le)
             
     # add Joe's top site lengths as features
     df = df.join(extract_lengths(df, joe_top_sites))
-    
+            
+    # add Joe's top site lengths as features
+    if joe_all_hosts is not None: df = df.join(extract_hosts(df, joe_all_hosts))
+
     
     return df[features]
 
 
-def print_scores(y_pred, y_true):
+def print_scores(y_true, y_pred):
     """
     Prints accuracy, recall, precision and F-1 scores
 
     Args:
-        y_pred (list of int): predictions from classifier
         y_true (list of int): true labels, as per specification (0=Joe/1=not-Joe)
+        y_pred (list of int): predictions from classifier
     """
-    print('{0:.4%}'.format(accuracy_score(y_pred, y_true)), 'is the accuracy of the classifier.')
-    print('{0:.4%}'.format(f1_score(y_pred, y_true, pos_label=user_id_joe)), 'is the F1-score of the classifier.')
-    print('{0:.2%}'.format(recall_score(y_pred, y_true, pos_label=user_id_joe)), 'of the Joe\'s accesses are detected.')
-    print('{0:.2%}'.format(precision_score(y_pred, y_true, pos_label=user_id_joe)), 'of the detections are truly from Joe.')
+    print('{0:.4%}'.format(accuracy_score(y_true, y_pred)), 'is the accuracy of the classifier.')
+    print('{0:.4%}'.format(f1_score(y_true, y_pred, pos_label=user_id_joe)), 'is the F1-score of the classifier.')
+    print('{0:.2%}'.format(recall_score(y_true, y_pred, pos_label=user_id_joe)), 'of the Joe\'s accesses are detected.')
+    print('{0:.2%}'.format(precision_score(y_true, y_pred, pos_label=user_id_joe)), 'of the detections are truly from Joe.')
 
 
 def main(
@@ -369,7 +454,9 @@ def main(
         catch_joe_dict['features'],
         catch_joe_dict['features_categorical'],
         catch_joe_dict['joe_top_sites'],
+        catch_joe_dict['joe_all_sites'],
         catch_joe_dict['encoder'],
+        catch_joe_dict['joe_all_hosts'],
     )
 
     # predict Joe (0) or not-Joe (1)
