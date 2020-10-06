@@ -82,6 +82,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+from IPython.display import Image
 from IPython.core.display import SVG
 
 
@@ -519,7 +520,7 @@ print_scores(y_pred, y_train)
 # 
 # In order to help us answer this question, let's plot the nodes of the Decision Tree as a graph plot below.
 
-# In[187]:
+# In[311]:
 
 
 viz = dtreeviz(model, X_train[:, :n_features_categorical], np.asarray(y_train),
@@ -528,7 +529,14 @@ viz = dtreeviz(model, X_train[:, :n_features_categorical], np.asarray(y_train),
         )
 viz_file = 'decision_tree.svg'
 viz.save(viz_file) # saves svg in local folder
-SVG(filename=viz_file) # plots svg in Jupyter Notebook
+# SVG(filename=viz_file) # plots svg in Jupyter Notebook
+
+
+# In[310]:
+
+
+# after converting the SVG to JPG, we get this
+Image(filename='decision_tree.jpg')
 
 
 # In[69]:
@@ -787,7 +795,7 @@ print('{0:.2%} of the predictions are detected as Joe\'s accesses.'.format(perce
 
 # The following code serves to convert the present Jupyter Notebook into Python code. This exported `.py` code is aimed to facilitate version control and tracking of "Python only" changes since it does not contain HTML nor JSON codes that are typically present in the `.ipynb` files.
 
-# In[222]:
+# In[286]:
 
 
 # convert Notebook to Python for better version control
